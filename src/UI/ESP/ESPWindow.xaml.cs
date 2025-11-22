@@ -697,6 +697,10 @@ namespace LoneEftDmaRadar.UI.ESP
             float drawX;
             float drawY;
 
+            var bounds = ctx.MeasureText(text, DxTextSize.Medium);
+            int textHeight = Math.Max(1, bounds.Bottom - bounds.Top);
+            int textPadding = 6;
+
             var labelPos = player.IsAI ? App.Config.UI.EspLabelPositionAI : App.Config.UI.EspLabelPosition;
 
             if (bbox.HasValue)
@@ -704,13 +708,15 @@ namespace LoneEftDmaRadar.UI.ESP
                 var box = bbox.Value;
                 drawX = box.Left + (box.Width / 2f);
                 drawY = labelPos == EspLabelPosition.Top
-                    ? box.Top - 10f
-                    : box.Bottom + 6f;
+                    ? box.Top - textHeight - textPadding
+                    : box.Bottom + textPadding;
             }
             else if (TryProject(player.GetBonePos(Bones.HumanHead), screenWidth, screenHeight, out var headScreen))
             {
                 drawX = headScreen.X;
-                drawY = headScreen.Y - 20f;
+                drawY = labelPos == EspLabelPosition.Top
+                    ? headScreen.Y - textHeight - textPadding
+                    : headScreen.Y + textPadding;
             }
             else
             {
