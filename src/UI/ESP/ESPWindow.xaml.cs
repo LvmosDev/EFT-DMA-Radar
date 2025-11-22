@@ -30,8 +30,8 @@ namespace LoneEftDmaRadar.UI.ESP
         private readonly System.Diagnostics.Stopwatch _fpsSw = new();
         private int _fpsCounter;
         private int _fps;
-        private long _lastFrameTicks;
         private Timer _highFrequencyTimer;
+        private int _renderPending;
 
         // Render surface
         private Dx9OverlayControl _dxOverlay;
@@ -149,15 +149,12 @@ namespace LoneEftDmaRadar.UI.ESP
             };
 
             _fpsSw.Start();
-            _lastFrameTicks = System.Diagnostics.Stopwatch.GetTimestamp();
 
-            // Start high-frequency render timer (1ms interval for up to 1000 FPS capability)
-            // This runs on a separate thread and is not limited by WPF's VSync
             _highFrequencyTimer = new System.Threading.Timer(
                 callback: HighFrequencyRenderCallback,
                 state: null,
                 dueTime: 0,
-                period: 1); // 1ms = up to 1000 checks per second
+                period: 1); // push frames as fast as dispatcher allows
         }
 
         private void InitializeRenderSurface()
@@ -191,27 +188,13 @@ namespace LoneEftDmaRadar.UI.ESP
                 if (_isClosing)
                     return;
 
-                int maxFPS = App.Config.UI.EspMaxFPS;
-
-                // Calculate elapsed time since last frame
-                long currentTicks = System.Diagnostics.Stopwatch.GetTimestamp();
-                double elapsedMs = (currentTicks - _lastFrameTicks) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-
-                // Determine target frame time
-                // If maxFPS is 0, default to 144 FPS (about 6.94ms per frame)
-                // Otherwise use the specified FPS
-                double targetFrameTime = maxFPS > 0 ? (1000.0 / maxFPS) : (1000.0 / 144.0);
-
-                // Only render if enough time has passed
-                if (elapsedMs >= targetFrameTime)
+                // Must dispatch to UI thread for rendering; avoid piling up work
+                if (System.Threading.Interlocked.CompareExchange(ref _renderPending, 1, 0) == 0)
                 {
-                    _lastFrameTicks = currentTicks;
-
-                    // Must dispatch to UI thread for rendering
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         RefreshESP();
-                    }), System.Windows.Threading.DispatcherPriority.Render);
+                    }), System.Windows.Threading.DispatcherPriority.Send);
                 }
             }
             catch { /* Ignore errors during shutdown */ }
@@ -803,6 +786,7 @@ namespace LoneEftDmaRadar.UI.ESP
                 return;
 
             _dxOverlay?.Render();
+            System.Threading.Interlocked.Exchange(ref _renderPending, 0);
         }
 
         private void Window_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -932,6 +916,12 @@ namespace LoneEftDmaRadar.UI.ESP
                 Left = 0;
                 Top = 0;
             }
+        }
+
+        public void ApplyFontConfig()
+        {
+            ApplyDxFontConfig();
+            RefreshESP();
         }
 
         #endregion

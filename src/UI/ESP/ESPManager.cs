@@ -84,6 +84,12 @@ namespace LoneEftDmaRadar.UI.ESP
             _espWindow.ApplyResolutionOverride();
         }
 
+        public static void ApplyFontConfig()
+        {
+            if (!_isInitialized || _espWindow is null) return;
+            _espWindow.ApplyFontConfig();
+        }
+
         /// <summary>
         /// Resets camera state and forces ESP refresh. Useful when ESP appears broken.
         /// </summary>

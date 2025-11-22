@@ -28,10 +28,6 @@
                                 Height="32"
                                 Margin="0,0,16,8"
                                 ToolTip="Opens the ESP Window in Fullscreen Mode."/>
-                        <CheckBox Content="Show Windowed ESP"
-                                  ToolTip="Enables the external ESP Window (Fuser/Streamproof)."
-                                  IsChecked="{Binding ShowESP, Mode=TwoWay}"
-                                  Margin="0,0,16,8" />
                         <CheckBox Content="Crosshair"
                                   ToolTip="Displays a simple crosshair at the center of the ESP window."
                                   IsChecked="{Binding EspCrosshair, Mode=TwoWay}"
@@ -47,7 +43,7 @@
                                   DisplayMemberPath="DisplayName"
                                   ToolTip="Select which monitor to display the ESP window on when using Start Fuser"/>
                     </WrapPanel>
-                    
+
                     <WrapPanel Margin="0,4,0,0">
                         <TextBlock Text="Resolution Override (0 = Auto): " VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBox Width="50" Text="{Binding EspScreenWidth, Mode=TwoWay}" Margin="0,0,8,0" ToolTip="Width (e.g. 1920)"/>
@@ -69,6 +65,35 @@
                                    VerticalAlignment="Center"
                                    Margin="8,0,0,0"/>
                     </WrapPanel>
+
+                    <GroupBox Header="Text Style" Margin="0,8,0,0">
+                        <StackPanel>
+                            <WrapPanel Margin="0,4,0,0">
+                                <TextBlock Text="Font Family:" VerticalAlignment="Center" Width="90"/>
+                                <TextBox Width="180"
+                                         Text="{Binding EspFontFamily, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Use any installed font family name (e.g. Segoe UI, Arial, Consolas)"/>
+                            </WrapPanel>
+                            <WrapPanel Margin="0,4,0,0">
+                                <TextBlock Text="Sizes (S/M/L):" VerticalAlignment="Center" Width="90"/>
+                                <TextBox Width="50"
+                                         Text="{Binding EspFontSizeSmall, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Small text size (loot labels)"/>
+                                <TextBlock Text="/" VerticalAlignment="Center" Margin="6,0"/>
+                                <TextBox Width="50"
+                                         Text="{Binding EspFontSizeMedium, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Medium text size (names, exfils)"/>
+                                <TextBlock Text="/" VerticalAlignment="Center" Margin="6,0"/>
+                                <TextBox Width="50"
+                                         Text="{Binding EspFontSizeLarge, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Large text size (status text)"/>
+                            </WrapPanel>
+                            <TextBlock Text="Changes apply instantly to the ESP overlay"
+                                       Foreground="Gray"
+                                       FontSize="10"
+                                       Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
                 </StackPanel>
             </GroupBox>
 
@@ -173,16 +198,6 @@
             <GroupBox Header="Performance"
                       Margin="0,0,0,12">
                 <StackPanel>
-                    <WrapPanel Margin="0,0,0,8">
-                        <CheckBox Content="Use GPU renderer (OpenGL)"
-                                  IsChecked="{Binding EspUseOpenGl, Mode=TwoWay}"
-                                  ToolTip="Uses SKGL/OpenGL. Restart the ESP window after changing." />
-                        <TextBlock Text="Restart ESP window after changing."
-                                   VerticalAlignment="Center"
-                                   Foreground="Gray"
-                                   FontSize="10"
-                                   Margin="8,0,0,0" />
-                    </WrapPanel>
                     <WrapPanel Margin="0,0,0,8">
                         <TextBlock Text="Max FPS (0 = 144fps default):"
                                    VerticalAlignment="Center"

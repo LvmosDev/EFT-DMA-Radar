@@ -310,19 +310,6 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
             }
         }
 
-        public bool EspUseOpenGl
-        {
-            get => App.Config.UI.EspUseOpenGl;
-            set
-            {
-                if (App.Config.UI.EspUseOpenGl != value)
-                {
-                    App.Config.UI.EspUseOpenGl = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
         public int EspScreenWidth
         {
             get => App.Config.UI.EspScreenWidth;
@@ -398,6 +385,63 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
                 if (Math.Abs(App.Config.UI.EspLootMaxDistance - value) > float.Epsilon)
                 {
                     App.Config.UI.EspLootMaxDistance = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string EspFontFamily
+        {
+            get => App.Config.UI.EspFontFamily;
+            set
+            {
+                var newVal = value ?? string.Empty;
+                if (!string.Equals(App.Config.UI.EspFontFamily, newVal, StringComparison.Ordinal))
+                {
+                    App.Config.UI.EspFontFamily = newVal;
+                    ESPManager.ApplyFontConfig();
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int EspFontSizeSmall
+        {
+            get => App.Config.UI.EspFontSizeSmall;
+            set
+            {
+                if (App.Config.UI.EspFontSizeSmall != value)
+                {
+                    App.Config.UI.EspFontSizeSmall = value;
+                    ESPManager.ApplyFontConfig();
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int EspFontSizeMedium
+        {
+            get => App.Config.UI.EspFontSizeMedium;
+            set
+            {
+                if (App.Config.UI.EspFontSizeMedium != value)
+                {
+                    App.Config.UI.EspFontSizeMedium = value;
+                    ESPManager.ApplyFontConfig();
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int EspFontSizeLarge
+        {
+            get => App.Config.UI.EspFontSizeLarge;
+            set
+            {
+                if (App.Config.UI.EspFontSizeLarge != value)
+                {
+                    App.Config.UI.EspFontSizeLarge = value;
+                    ESPManager.ApplyFontConfig();
                     OnPropertyChanged();
                 }
             }

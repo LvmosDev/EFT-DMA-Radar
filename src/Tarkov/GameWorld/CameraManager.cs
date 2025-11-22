@@ -61,59 +61,66 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld
 
                 for (int i = 0; i < 100; i++)
                 {
-                    var camera = Memory.ReadPtr(cameraManager + (ulong)i * 0x8, false);
-                    if (camera == 0)
-                        continue;
-
-                    Span<uint> nameChain = stackalloc uint[] { 0x50, 0x80 };
-                    var namePtr = Memory.ReadPtrChain(camera, false, nameChain);
-                    
-                    if (namePtr == 0)
-                        continue;
-
-                    string name;
                     try
                     {
-                        name = Memory.ReadUtf8String(namePtr, 128, false);
-                    }
-                    catch
-                    {
-                        // Pointer occasionally goes stale between raids; skip this entry and keep scanning.
-                        continue;
-                    }
-                    
-                    if (!string.IsNullOrEmpty(name))
-                    {
-                        camerasFound++;
-                        
-                        if (name.Contains("Camera", StringComparison.OrdinalIgnoreCase) || 
-                            name.Contains("Optic", StringComparison.OrdinalIgnoreCase))
-                        {
-                            DebugLogger.LogDebug($"CameraManager: Found GameObject[{i}] = '{name}' at 0x{camera:X}");
-                        }
-                        else if (camerasFound <= 10)
-                        {
-                            DebugLogger.LogDebug($"CameraManager: Found GameObject[{i}] = '{name}'");
-                        }
-                    }
+                        var camera = Memory.ReadPtr(cameraManager + (ulong)i * 0x8, false);
+                        if (camera == 0)
+                            continue;
 
-                    if (name == "FPS Camera")
-                    {
-                        _fpsCamera = camera;
-                        DebugLogger.LogInfo($"CameraManager: Found FPS Camera at 0x{camera:X}");
-                    }
-                    else if (name == "BaseOpticCamera(Clone)")
-                    {
-                        _opticCamera = camera;
-                        DebugLogger.LogInfo($"CameraManager: Found BaseOpticCamera at 0x{camera:X}");
-                    }
+                        Span<uint> nameChain = stackalloc uint[] { 0x50, 0x80 };
+                        var namePtr = Memory.ReadPtrChain(camera, false, nameChain);
 
-                if (_fpsCamera != 0 && _opticCamera != 0)
-                {
-                    _isInitialized = true;
-                    DebugLogger.LogInfo($"CameraManager: Successfully initialized with BOTH cameras - FPS: 0x{_fpsCamera:X}, Optic: 0x{_opticCamera:X}");
-                    return true;
-                }
+                        if (namePtr == 0)
+                            continue;
+
+                        string name;
+                        try
+                        {
+                            name = Memory.ReadUtf8String(namePtr, 128, false);
+                        }
+                        catch
+                        {
+                            // Pointer occasionally goes stale between raids; skip this entry and keep scanning.
+                            continue;
+                        }
+
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            camerasFound++;
+
+                            if (name.Contains("Camera", StringComparison.OrdinalIgnoreCase) ||
+                                name.Contains("Optic", StringComparison.OrdinalIgnoreCase))
+                            {
+                                DebugLogger.LogDebug($"CameraManager: Found GameObject[{i}] = '{name}' at 0x{camera:X}");
+                            }
+                            else if (camerasFound <= 10)
+                            {
+                                DebugLogger.LogDebug($"CameraManager: Found GameObject[{i}] = '{name}'");
+                            }
+                        }
+
+                        if (name == "FPS Camera")
+                        {
+                            _fpsCamera = camera;
+                            DebugLogger.LogInfo($"CameraManager: Found FPS Camera at 0x{camera:X}");
+                        }
+                        else if (name == "BaseOpticCamera(Clone)")
+                        {
+                            _opticCamera = camera;
+                            DebugLogger.LogInfo($"CameraManager: Found BaseOpticCamera at 0x{camera:X}");
+                        }
+
+                        if (_fpsCamera != 0 && _opticCamera != 0)
+                        {
+                            _isInitialized = true;
+                            DebugLogger.LogInfo($"CameraManager: Successfully initialized with BOTH cameras - FPS: 0x{_fpsCamera:X}, Optic: 0x{_opticCamera:X}");
+                            return true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return false;
+                    }
             }
 
             if (_fpsCamera != 0)
