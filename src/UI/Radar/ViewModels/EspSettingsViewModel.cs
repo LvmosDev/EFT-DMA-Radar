@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
 using LoneEftDmaRadar;
 using LoneEftDmaRadar.UI.ESP;
@@ -34,31 +35,37 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
         {
             AvailableScreens.Clear();
 
-            // Use WPF's SystemParameters for screen info
-            var primaryWidth = (int)SystemParameters.PrimaryScreenWidth;
-            var primaryHeight = (int)SystemParameters.PrimaryScreenHeight;
-            var virtualWidth = (int)SystemParameters.VirtualScreenWidth;
-            var virtualHeight = (int)SystemParameters.VirtualScreenHeight;
-
-            // Primary screen
-            AvailableScreens.Add(new ScreenOption
+            var monitors = MonitorInfo.GetAllMonitors();
+            foreach (var monitor in monitors.OrderBy(m => m.Index))
             {
-                Index = 0,
-                DisplayName = $"Screen 1 (Primary) - {primaryWidth}x{primaryHeight}"
-            });
+                AvailableScreens.Add(monitor);
+            }
 
-            // If virtual screen is larger, there are additional monitors
-            if (virtualWidth > primaryWidth || virtualHeight > primaryHeight)
+            // Ensure a valid selection exists
+            if (!AvailableScreens.Any())
             {
-                AvailableScreens.Add(new ScreenOption
+                var fallback = new MonitorInfo
                 {
-                    Index = 1,
-                    DisplayName = $"Screen 2 (Secondary) - Detect Auto"
-                });
+                    Index = 0,
+                    Name = "Primary Display",
+                    Width = (int)SystemParameters.PrimaryScreenWidth,
+                    Height = (int)SystemParameters.PrimaryScreenHeight,
+                    Left = 0,
+                    Top = 0,
+                    IsPrimary = true
+                };
+                AvailableScreens.Add(fallback);
+            }
+
+            if (!AvailableScreens.Any(m => m.Index == App.Config.UI.EspTargetScreen))
+            {
+                var primary = AvailableScreens.FirstOrDefault(m => m.IsPrimary) ?? AvailableScreens.First();
+                App.Config.UI.EspTargetScreen = primary.Index;
+                OnPropertyChanged(nameof(EspTargetScreen));
             }
         }
 
-        public ObservableCollection<ScreenOption> AvailableScreens { get; } = new ObservableCollection<ScreenOption>();
+        public ObservableCollection<MonitorInfo> AvailableScreens { get; } = new ObservableCollection<MonitorInfo>();
 
         public ICommand ToggleEspCommand { get; }
         public ICommand StartEspCommand { get; }
@@ -676,9 +683,4 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
         }
     }
 
-    public class ScreenOption
-    {
-        public int Index { get; set; }
-        public string DisplayName { get; set; }
-    }
 }

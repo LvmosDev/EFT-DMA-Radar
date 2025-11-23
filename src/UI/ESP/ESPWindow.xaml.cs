@@ -1051,49 +1051,11 @@ namespace LoneEftDmaRadar.UI.ESP
                 this.Topmost = true;
                 this.WindowState = WindowState.Normal;
 
-                // Get target screen
-                var targetScreenIndex = App.Config.UI.EspTargetScreen;
-                var (width, height) = GetConfiguredResolution();
+                var monitor = GetTargetMonitor();
+                var (width, height) = GetConfiguredResolution(monitor);
 
-                // Position window based on screen selection
-                if (targetScreenIndex == 0)
-                {
-                    // Primary screen - position at 0,0
-                    this.Left = 0;
-                    this.Top = 0;
-                    if (width == SystemParameters.PrimaryScreenWidth && height == SystemParameters.PrimaryScreenHeight)
-                    {
-                        width = SystemParameters.PrimaryScreenWidth;
-                        height = SystemParameters.PrimaryScreenHeight;
-                    }
-                }
-                else
-                {
-                    // Secondary screen - position to the right of primary
-                    var primaryWidth = SystemParameters.PrimaryScreenWidth;
-                    var virtualLeft = SystemParameters.VirtualScreenLeft;
-                    var virtualTop = SystemParameters.VirtualScreenTop;
-
-                    // If secondary is to the left (negative coords)
-                    if (virtualLeft < 0)
-                    {
-                        this.Left = virtualLeft;
-                        this.Top = virtualTop;
-                    }
-                    else
-                    {
-                        // Secondary is to the right
-                        this.Left = primaryWidth;
-                        this.Top = 0;
-                    }
-
-                    if (width == SystemParameters.PrimaryScreenWidth && height == SystemParameters.PrimaryScreenHeight)
-                    {
-                        // Use virtual screen dimensions for secondary
-                        width = SystemParameters.VirtualScreenWidth - SystemParameters.PrimaryScreenWidth;
-                        height = SystemParameters.VirtualScreenHeight;
-                    }
-                }
+                this.Left = monitor?.Left ?? 0;
+                this.Top = monitor?.Top ?? 0;
 
                 this.Width = width;
                 this.Height = height;
@@ -1108,22 +1070,23 @@ namespace LoneEftDmaRadar.UI.ESP
             if (!_isFullscreen)
                 return;
 
-            var (width, height) = GetConfiguredResolution();
-            this.Left = 0;
-            this.Top = 0;
+            var monitor = GetTargetMonitor();
+            var (width, height) = GetConfiguredResolution(monitor);
+            this.Left = monitor?.Left ?? 0;
+            this.Top = monitor?.Top ?? 0;
             this.Width = width;
             this.Height = height;
             this.RefreshESP();
         }
 
-        private (double width, double height) GetConfiguredResolution()
+        private (double width, double height) GetConfiguredResolution(MonitorInfo monitor)
         {
             double width = App.Config.UI.EspScreenWidth > 0
                 ? App.Config.UI.EspScreenWidth
-                : SystemParameters.PrimaryScreenWidth;
+                : monitor?.Width ?? SystemParameters.PrimaryScreenWidth;
             double height = App.Config.UI.EspScreenHeight > 0
                 ? App.Config.UI.EspScreenHeight
-                : SystemParameters.PrimaryScreenHeight;
+                : monitor?.Height ?? SystemParameters.PrimaryScreenHeight;
             return (width, height);
         }
 
@@ -1135,14 +1098,20 @@ namespace LoneEftDmaRadar.UI.ESP
             if (App.Config.UI.EspScreenWidth <= 0 && App.Config.UI.EspScreenHeight <= 0)
                 return;
 
-            var target = GetConfiguredResolution();
+            var monitor = GetTargetMonitor();
+            var target = GetConfiguredResolution(monitor);
             if (Math.Abs(Width - target.width) > 0.5 || Math.Abs(Height - target.height) > 0.5)
             {
                 Width = target.width;
                 Height = target.height;
-                Left = 0;
-                Top = 0;
+                Left = monitor?.Left ?? 0;
+                Top = monitor?.Top ?? 0;
             }
+        }
+
+        private MonitorInfo GetTargetMonitor()
+        {
+            return MonitorInfo.GetMonitor(App.Config.UI.EspTargetScreen);
         }
 
         public void ApplyFontConfig()
