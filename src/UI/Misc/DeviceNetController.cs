@@ -1,5 +1,6 @@
 using System;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LoneEftDmaRadar.UI.Misc
@@ -11,10 +12,11 @@ namespace LoneEftDmaRadar.UI.Misc
     {
         private static KmBoxNetClient _client;
         private static readonly object _lock = new();
+        private static CancellationTokenSource _cts;
 
         public static bool Connected { get; private set; }
 
-        public static bool Connect(string ip, int port, string macHex)
+        public static async Task<bool> ConnectAsync(string ip, int port, string macHex, int timeoutMs = 3000)
         {
             try
             {
@@ -22,6 +24,7 @@ namespace LoneEftDmaRadar.UI.Misc
                 {
                     Disconnect();
 
+                    _cts = new CancellationTokenSource(timeoutMs);
                     if (!IPAddress.TryParse(ip, out var address))
                     {
                         DebugLogger.LogDebug($"[KMBoxNet] Invalid IP: {ip}");
@@ -31,8 +34,7 @@ namespace LoneEftDmaRadar.UI.Misc
                     _client = new KmBoxNetClient(address, port, macHex);
                 }
 
-                // Connect asynchronously but block until done to keep existing flow simple.
-                var ok = _client.ConnectAsync().GetAwaiter().GetResult();
+                var ok = await _client.ConnectAsync(_cts.Token).ConfigureAwait(false);
                 Connected = ok;
                 DebugLogger.LogDebug(ok
                     ? "[KMBoxNet] Connected"
@@ -52,6 +54,9 @@ namespace LoneEftDmaRadar.UI.Misc
             lock (_lock)
             {
                 Connected = false;
+                _cts?.Cancel();
+                _cts?.Dispose();
+                _cts = null;
                 _client?.Dispose();
                 _client = null;
             }

@@ -13,6 +13,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using LoneEftDmaRadar.DMA;
 using VmmSharpEx;
+using System.Threading.Tasks;
 
 namespace LoneEftDmaRadar.UI.Radar.ViewModels
 {
@@ -332,10 +333,14 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
                     }
                     else if (App.Config.Device.UseKmBoxNet)
                     {
-                        if (DeviceNetController.Connect(App.Config.Device.KmBoxNetIp, App.Config.Device.KmBoxNetPort, App.Config.Device.KmBoxNetMac))
-                        {
-                            UpdateConnectionStatus();
-                        }
+                        DeviceNetController.ConnectAsync(App.Config.Device.KmBoxNetIp, App.Config.Device.KmBoxNetPort, App.Config.Device.KmBoxNetMac)
+                            .ContinueWith(t =>
+                            {
+                                if (t.Result)
+                                {
+                                    UpdateConnectionStatus();
+                                }
+                            });
                     }
                 });
             }
@@ -364,13 +369,13 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
             }
         }
 
-        private void Connect()
+        private async void Connect()
         {
             try
             {
                 if (App.Config.Device.UseKmBoxNet)
                 {
-                    bool okNet = DeviceNetController.Connect(App.Config.Device.KmBoxNetIp, App.Config.Device.KmBoxNetPort, App.Config.Device.KmBoxNetMac);
+                    bool okNet = await DeviceNetController.ConnectAsync(App.Config.Device.KmBoxNetIp, App.Config.Device.KmBoxNetPort, App.Config.Device.KmBoxNetMac);
                     UpdateConnectionStatus();
                     if (!okNet)
                     {

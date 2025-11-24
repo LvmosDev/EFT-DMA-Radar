@@ -4,12 +4,14 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LoneEftDmaRadar.UI.Misc
 {
     internal sealed class KmBoxNetClient : IDisposable
     {
+        private const int DefaultTimeoutMs = 2000;
         private readonly IPAddress _remote;
         private readonly int _port;
         private readonly string _macHex;
@@ -24,41 +26,56 @@ namespace LoneEftDmaRadar.UI.Misc
             _macHex = macHex ?? throw new ArgumentNullException(nameof(macHex));
         }
 
-        public async Task<bool> ConnectAsync()
+        public async Task<bool> ConnectAsync(CancellationToken ct = default)
         {
             _udp.Connect(_remote, _port);
             var head = NextHead(KmCommand.CmdConnect);
-            var response = await SendAndReceiveAsync<CmdHead, CmdHead>(head);
+            var response = await SendAndReceiveAsync<CmdHead, CmdHead>(head, ct);
             return CheckResponse(head, response);
         }
 
-        public async Task<bool> MouseMoveAsync(short x, short y)
+        public async Task<bool> MouseMoveAsync(short x, short y, CancellationToken ct = default)
         {
             var head = NextHead(KmCommand.CmdMouseMove);
             var action = new MouseAction { X = x, Y = y, Points = new int[10] };
-            var response = await SendAndReceiveAsync<CmdHead, MouseAction, CmdHead>(head, action);
+            var response = await SendAndReceiveAsync<CmdHead, MouseAction, CmdHead>(head, action, ct);
             return CheckResponse(head, response);
         }
 
-        private async Task<TResponse> SendAndReceiveAsync<THead, TResponse>(THead head)
+        private async Task<TResponse> SendAndReceiveAsync<THead, TResponse>(THead head, CancellationToken ct)
             where THead : struct
             where TResponse : struct
         {
             var payload = StructHelper.StructsToBytes(head);
             await _udp.SendAsync(payload);
-            var result = await _udp.ReceiveAsync();
+            var result = await ReceiveWithTimeout(ct);
             return StructHelper.BytesToStruct<TResponse>(result.Buffer);
         }
 
-        private async Task<TResponse> SendAndReceiveAsync<THead, TBody, TResponse>(THead head, TBody body)
+        private async Task<TResponse> SendAndReceiveAsync<THead, TBody, TResponse>(THead head, TBody body, CancellationToken ct)
             where THead : struct
             where TBody : struct
             where TResponse : struct
         {
             var payload = StructHelper.StructsToBytes(head, body);
             await _udp.SendAsync(payload);
-            var result = await _udp.ReceiveAsync();
+            var result = await ReceiveWithTimeout(ct);
             return StructHelper.BytesToStruct<TResponse>(result.Buffer);
+        }
+
+        private async Task<UdpReceiveResult> ReceiveWithTimeout(CancellationToken ct)
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var recvTask = _udp.ReceiveAsync();
+            var delayTask = Task.Delay(DefaultTimeoutMs, timeoutCts.Token);
+            var completed = await Task.WhenAny(recvTask, delayTask);
+            if (completed != recvTask)
+            {
+                throw new TimeoutException("KMBox NET response timed out");
+            }
+
+            timeoutCts.Cancel(); // cancel delay
+            return await recvTask;
         }
 
         private CmdHead NextHead(KmCommand cmd)
@@ -166,7 +183,12 @@ namespace LoneEftDmaRadar.UI.Misc
             if (string.IsNullOrWhiteSpace(mac))
                 throw new ArgumentException("MAC is required", nameof(mac));
 
-            return Convert.ToUInt32(mac, 16);
+            var cleaned = mac.Replace(":", "", StringComparison.Ordinal)
+                             .Replace("-", "", StringComparison.Ordinal)
+                             .Replace(" ", "", StringComparison.Ordinal)
+                             .Trim();
+
+            return Convert.ToUInt32(cleaned, 16);
         }
     }
 
