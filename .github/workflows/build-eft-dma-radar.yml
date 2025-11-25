@@ -15,8 +15,7 @@ jobs:
         configuration: [ Release ]
 
     env:
-      # Pfad zur Solution – bei diesem Repo liegt sie im src-Ordner
-      Solution_Name: src\EFT-DMA-Radar.sln
+      Solution_Name: src\Lone-EFT-DMA-Radar.sln
 
     steps:
       - name: Checkout
@@ -31,10 +30,6 @@ jobs:
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
-
-      # Wenn du später Tests hast, hier Pfad setzen und entkommentieren:
-      # - name: Run tests
-      #   run: dotnet test src\DeinTestProjekt\DeinTestProjekt.csproj
 
       - name: Restore
         run: msbuild $Env:Solution_Name /t:Restore /p:Configuration=${{ matrix.configuration }}
