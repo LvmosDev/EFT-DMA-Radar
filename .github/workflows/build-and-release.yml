@@ -49,7 +49,7 @@ jobs:
         with:
           script: |
             // Allow manual override from workflow_dispatch input: release_version
-            const inputVersion = github.event.inputs && github.event.inputs.release_version ? github.event.inputs.release_version : null;
+            const inputVersion = (context.payload && context.payload.inputs && context.payload.inputs.release_version) ? context.payload.inputs.release_version : null;
             if (inputVersion) {
               const m = inputVersion.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
               if (m) return inputVersion.startsWith('v') ? inputVersion : `v${inputVersion}`;
