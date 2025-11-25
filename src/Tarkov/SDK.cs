@@ -79,9 +79,10 @@ namespace SDK
 
         public readonly partial struct ObservedPlayerController
         {
-            public const uint Player = 0x18; // EFT.NextObservedPlayer.ObservedPlayerView
+            public const uint PlayerView = 0x18; // EFT.NextObservedPlayer.ObservedPlayerView
             public const uint MovementController = 0xD8; // -.\uED4F
             public const uint HealthController = 0xE8; // -.\uE446
+            public const uint InventoryController = 0x10; // EFT.NextObservedPlayer.ObservedPlayerInventoryController
         }
 
         public readonly partial struct ObservedPlayerStateContext
@@ -327,6 +328,20 @@ namespace SDK
             public const uint Velocity = 0x30; // UnityEngine.Vector3 <Velocity> Velocity
         }
 
+        public readonly partial struct InventoryController
+        {
+            public const uint Inventory = 0x100; // EFT.InventoryLogic.Inventory
+        }
+
+        public readonly partial struct Inventory
+        {
+            public const uint Equipment = 0x18; // EFT.InventoryLogic.InventoryEquipment
+        }
+
+        public readonly partial struct InventoryEquipment
+        {
+            public const uint _cachedSlots = 0x90; // EFT.InventoryLogic.Slot[]
+        }
     }
 
     public readonly partial struct Enums

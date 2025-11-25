@@ -1018,6 +1018,16 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
                 lines.Add(name);
             }
 
+            if (this is ObservedPlayer obs2 && obs2.Equipment.Items is IReadOnlyDictionary<string, TarkovMarketItem> equipment)
+            {
+                // This is outside of the previous conditionals to always show equipment even if they're dead,etc.
+                lines.Add($"Value: {Utilities.FormatNumberKM(obs2.Equipment.Value)}");
+                foreach (var item in equipment.OrderBy(e => e.Key))
+                {
+                    lines.Add($"{item.Key.Substring(0, 5)}: {item.Value.ShortName}");
+                }
+            }
+
             Position.ToMapPos(mapParams.Map).ToZoomedPos(mapParams).DrawMouseoverText(canvas, lines.Span);
         }
 

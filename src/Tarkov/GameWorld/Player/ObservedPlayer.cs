@@ -45,6 +45,14 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
         /// </summary>
         public PlayerProfile Profile { get; }
         /// <summary>
+        /// Player's Current Items.
+        /// </summary>
+        public PlayerEquipment Equipment { get; }
+        /// <summary>
+        /// Address of InventoryController field.
+        /// </summary>
+        public ulong InventoryControllerAddr { get; }
+        /// <summary>
         /// ObservedPlayerController for non-clientplayer players.
         /// </summary>
         private ulong ObservedPlayerController { get; }
@@ -158,13 +166,10 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
             var localPlayer = Memory.LocalPlayer;
             ArgumentNullException.ThrowIfNull(localPlayer, nameof(localPlayer));
             ObservedPlayerController = Memory.ReadPtr(this + Offsets.ObservedPlayerView.ObservedPlayerController);
-            ArgumentOutOfRangeException.ThrowIfNotEqual(this,
-                Memory.ReadValue<ulong>(ObservedPlayerController + Offsets.ObservedPlayerController.Player),
-                nameof(ObservedPlayerController));
+            ArgumentOutOfRangeException.ThrowIfNotEqual(this, Memory.ReadValue<ulong>(ObservedPlayerController + Offsets.ObservedPlayerController.PlayerView), nameof(ObservedPlayerController));
+            InventoryControllerAddr = ObservedPlayerController + Offsets.ObservedPlayerController.InventoryController;
             ObservedHealthController = Memory.ReadPtr(ObservedPlayerController + Offsets.ObservedPlayerController.HealthController);
-            ArgumentOutOfRangeException.ThrowIfNotEqual(this,
-                Memory.ReadValue<ulong>(ObservedHealthController + Offsets.ObservedHealthController.Player),
-                nameof(ObservedHealthController));
+            ArgumentOutOfRangeException.ThrowIfNotEqual(this, Memory.ReadValue<ulong>(ObservedHealthController + Offsets.ObservedHealthController.Player), nameof(ObservedHealthController));
             CorpseAddr = ObservedHealthController + Offsets.ObservedHealthController.PlayerCorpse;
 
             MovementContext = GetMovementContext();
@@ -244,6 +249,7 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
                     UpdateAlerts($"[Watchlist] {watchlistEntry.Reason} @ {watchlistEntry.Timestamp}");
                 }
             }
+            Equipment = new PlayerEquipment(this);
         }
 
         /// <summary>
