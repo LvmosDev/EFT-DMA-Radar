@@ -289,18 +289,13 @@ namespace LoneEftDmaRadar
                 if (IsNewer(latest.Value, current.Value))
                 {
                     var result = MessageBox.Show(
-                        messageBoxText: $"Version {current} ist veraltet. Neue Version {latest} verfügbar. Jetzt laden?",
+                        messageBoxText: $"Your version {current} is outdated. A newer version {latest} is available. Download and replace now?",
                         caption: App.Name,
                         button: MessageBoxButton.YesNo,
                         icon: MessageBoxImage.Information);
                     if (result == MessageBoxResult.Yes)
                     {
-                        // Open releases page for download
-                        Process.Start(new ProcessStartInfo
-                        {
-                            FileName = $"https://github.com/{owner}/{repo}/releases/latest",
-                            UseShellExecute = true
-                        });
+                        await DownloadAndReplaceAsync(doc, owner, repo);
                     }
                 }
             }
@@ -328,6 +323,72 @@ namespace LoneEftDmaRadar
                 if (a.major != b.major) return a.major > b.major;
                 if (a.minor != b.minor) return a.minor > b.minor;
                 return a.patch > b.patch;
+            }
+        }
+
+        private static async Task DownloadAndReplaceAsync(JsonDocument latestReleaseDoc, string owner, string repo)
+        {
+            try
+            {
+                var root = latestReleaseDoc.RootElement;
+                if (!root.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+                    return;
+
+                // Pick first zip asset
+                string assetUrl = null;
+                string assetName = null;
+                foreach (var a in assets.EnumerateArray())
+                {
+                    var name = a.GetProperty("name").GetString();
+                    var url = a.GetProperty("browser_download_url").GetString();
+                    if (!string.IsNullOrWhiteSpace(name) && name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(url))
+                    {
+                        assetUrl = url;
+                        assetName = name;
+                        break;
+                    }
+                }
+                if (assetUrl is null)
+                    return;
+
+                using var client = App.HttpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("EFT-DMA-Radar/1.0");
+
+                var tempDir = Path.Combine(Path.GetTempPath(), "EFT-DMA-Radar_Update");
+                Directory.CreateDirectory(tempDir);
+                var zipPath = Path.Combine(tempDir, assetName);
+
+                using (var s = await client.GetStreamAsync(assetUrl))
+                using (var fs = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await s.CopyToAsync(fs);
+                }
+
+                var appDir = AppDomain.CurrentDomain.BaseDirectory;
+                // Extract and overwrite
+                System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, appDir, overwriteFiles: true);
+
+                MessageBox.Show("Update downloaded and applied. The application will now restart.", App.Name, MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Restart
+                var exe = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(appDir, "EFT-DMA-Radar.exe");
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exe,
+                    UseShellExecute = true
+                });
+                // Exit current
+                Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to update automatically: {ex.Message}", App.Name, MessageBoxButton.OK, MessageBoxImage.Warning);
+                // Fallback: open releases page
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = $"https://github.com/{owner}/{repo}/releases/latest",
+                    UseShellExecute = true
+                });
             }
         }
 
