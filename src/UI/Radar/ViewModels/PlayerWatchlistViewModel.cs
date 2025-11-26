@@ -29,6 +29,7 @@ SOFTWARE.
 using LoneEftDmaRadar.UI.Data;
 using LoneEftDmaRadar.UI.Radar.Views;
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 
 namespace LoneEftDmaRadar.UI.Radar.ViewModels
 {
@@ -53,10 +54,58 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
         /// </summary>
         public ObservableCollection<PlayerWatchlistEntry> Entries => App.Config.PlayerWatchlist;
 
-        public PlayerWatchlistViewModel(PlayerWatchlistTab parent)
+        public ObservableCollection<string> RaidPlayers { get; } = new();
+        private string _selectedRaidPlayerId;
+        public string SelectedRaidPlayerId
         {
-            _parent = parent;
-            Entries.CollectionChanged += Entries_CollectionChanged;
+            get => _selectedRaidPlayerId;
+            set { if (_selectedRaidPlayerId != value) { _selectedRaidPlayerId = value; OnPropertyChanged(); } }
+        }
+        private string _reasonInput;
+        public string ReasonInput
+        {
+            get => _reasonInput;
+            set { if (_reasonInput != value) { _reasonInput = value; OnPropertyChanged(); } }
+        }
+        private bool _isStreamerInput;
+        public bool IsStreamerInput
+        {
+            get => _isStreamerInput;
+            set { if (_isStreamerInput != value) { _isStreamerInput = value; OnPropertyChanged(); } }
+        }
+        public ICommand RefreshRaidPlayersCommand { get; }
+        public ICommand AddSelectedRaidPlayerCommand { get; }
+
+        private void RefreshRaidPlayers()
+        {
+            RaidPlayers.Clear();
+            var players = LoneEftDmaRadar.DMA.MemDMA.AllPlayers;
+            if (players != null)
+            {
+                foreach (var p in players.Where(p => p is not LoneEftDmaRadar.Tarkov.GameWorld.Player.LocalPlayer))
+                {
+                    var id = (p as LoneEftDmaRadar.Tarkov.GameWorld.Player.ObservedPlayer)?.AccountID ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(id)) RaidPlayers.Add(id);
+                }
+            }
+        }
+
+        private void AddSelectedRaidPlayer()
+        {
+            var acct = SelectedRaidPlayerId;
+            if (string.IsNullOrWhiteSpace(acct)) return;
+            var reason = string.IsNullOrWhiteSpace(ReasonInput) ? "Cheater" : ReasonInput;
+            var entry = new PlayerWatchlistEntry { AcctID = acct, Reason = reason, Streamer = IsStreamerInput, Timestamp = DateTime.Now };
+            var existing = Entries.FirstOrDefault(x => string.Equals(x.AcctID, acct, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                existing.Reason = $"{reason} | {existing.Reason}";
+                existing.Streamer = existing.Streamer || IsStreamerInput;
+            }
+            else
+            {
+                Entries.Add(entry);
+            }
         }
 
         private void Entries_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -118,6 +167,14 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
                     }
                 });
             }
+        }
+
+        public PlayerWatchlistViewModel(PlayerWatchlistTab parent)
+        {
+            _parent = parent;
+            Entries.CollectionChanged += Entries_CollectionChanged;
+            RefreshRaidPlayersCommand = new SimpleCommand(RefreshRaidPlayers);
+            AddSelectedRaidPlayerCommand = new SimpleCommand(AddSelectedRaidPlayer);
         }
     }
 }
