@@ -368,7 +368,7 @@ namespace LoneEftDmaRadar.UI.ESP
                 if (isCorpse && !App.Config.UI.EspCorpses)
                     continue;
 
-                bool isContainer = item is LootContainer;
+                bool isContainer = item is StaticLootContainer or LootAirdrop;
                 if (isContainer && !App.Config.UI.EspContainers)
                     continue;
 
@@ -462,12 +462,6 @@ namespace LoneEftDmaRadar.UI.ESP
                          {
                              var corpseName = corpse.Player?.Name;
                              text = string.IsNullOrWhiteSpace(corpseName) ? corpse.Name : corpseName;
-                             if (App.Config.UI.EspLootPrice)
-                             {
-                                 var corpseValue = corpse.Loot?.Values?.Sum(x => x.Price) ?? 0;
-                                 if (corpseValue > 0)
-                                     text = $"{text} ({LoneEftDmaRadar.Misc.Utilities.FormatNumberKM(corpseValue)})";
-                             }
                          }
                          else
                          {
@@ -491,7 +485,7 @@ namespace LoneEftDmaRadar.UI.ESP
             if (!App.Config.Containers.Enabled)
                 return;
 
-            var containers = Memory.Game?.Loot?.StaticContainers;
+            var containers = Memory.Game?.Loot?.AllLoot?.OfType<StaticLootContainer>();
             if (containers is null)
                 return;
 
@@ -587,6 +581,13 @@ namespace LoneEftDmaRadar.UI.ESP
             if (player is null || player == localPlayer || !player.IsAlive || !player.IsActive)
                 return;
 
+            // Validate player position is valid (not zero or NaN/Infinity)
+            var playerPos = player.Position;
+            if (playerPos == Vector3.Zero || 
+                float.IsNaN(playerPos.X) || float.IsNaN(playerPos.Y) || float.IsNaN(playerPos.Z) ||
+                float.IsInfinity(playerPos.X) || float.IsInfinity(playerPos.Y) || float.IsInfinity(playerPos.Z))
+                return;
+
             // Check if this is AI or player
             bool isAI = player.Type is PlayerType.AIScav or PlayerType.AIRaider or PlayerType.AIBoss or PlayerType.PScav;
 
@@ -618,8 +619,8 @@ namespace LoneEftDmaRadar.UI.ESP
             bool drawGroupId = isAI ? App.Config.UI.EspAIGroupIds : App.Config.UI.EspGroupIds;
             bool drawLabel = drawName || drawDistance || drawHealth || drawGroupId;
 
-            // Draw Skeleton
-            if (drawSkeleton)
+            // Draw Skeleton (only if not in error state to avoid frozen bones)
+            if (drawSkeleton && !player.IsError)
             {
                 DrawSkeleton(ctx, player, screenWidth, screenHeight, color, _skeletonPaint.StrokeWidth);
             }
@@ -679,6 +680,10 @@ namespace LoneEftDmaRadar.UI.ESP
                 var p1 = player.GetBonePos(from);
                 var p2 = player.GetBonePos(to);
 
+                // Skip if either bone position is invalid (zero or NaN)
+                if (p1 == Vector3.Zero || p2 == Vector3.Zero)
+                    continue;
+
                 if (TryProject(p1, w, h, out var s1) && TryProject(p2, w, h, out var s2))
                 {
                     ctx.DrawLine(ToRaw(s1), ToRaw(s2), color, thickness);
@@ -689,12 +694,19 @@ namespace LoneEftDmaRadar.UI.ESP
             private bool TryGetBoundingBox(AbstractPlayer player, float w, float h, out RectangleF rect)
         {
             rect = default;
+            
+            // Validate player position before calculating bounding box
+            var playerPos = player.Position;
+            if (playerPos == Vector3.Zero || 
+                float.IsNaN(playerPos.X) || float.IsInfinity(playerPos.X))
+                return false;
+            
             var projectedPoints = new List<SKPoint>();
             var mins = new Vector3((float)-0.4, 0, (float)-0.4);
             var maxs = new Vector3((float)0.4, (float)1.75, (float)0.4);
 
-            mins = player.Position + mins;
-            maxs = player.Position + maxs;
+            mins = playerPos + mins;
+            maxs = playerPos + maxs;
 
             var points = new List<Vector3> {
                 new Vector3(mins.X, mins.Y, mins.Z),
