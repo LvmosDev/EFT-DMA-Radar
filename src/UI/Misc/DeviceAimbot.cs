@@ -18,6 +18,7 @@ using LoneEftDmaRadar.Tarkov.Unity.Structures;
 using LoneEftDmaRadar.UI.Misc.Ballistics;
 using SkiaSharp;
 using CameraManagerNew = LoneEftDmaRadar.Tarkov.GameWorld.Camera.CameraManager;
+using LoneEftDmaRadar.UI.Skia;
 
 namespace LoneEftDmaRadar.UI.Misc
 {
@@ -27,6 +28,31 @@ namespace LoneEftDmaRadar.UI.Misc
     public sealed class DeviceAimbot : IDisposable
     {
         #region Fields
+        // Cached paints/fonts for debug overlay (avoid per-frame allocations)
+        private static readonly SKPaint s_bgPaint = new SKPaint
+        {
+            Color = new SKColor(0, 0, 0, 180),
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+        private static readonly SKPaint s_textPaint = new SKPaint
+        {
+            Color = SKColors.White,
+            IsAntialias = true
+        };
+        private static readonly SKPaint s_headerPaint = new SKPaint
+        {
+            Color = SKColors.Yellow,
+            IsAntialias = true
+        };
+        private static readonly SKPaint s_shadowPaint = new SKPaint
+        {
+            Color = SKColors.Black,
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 3
+        };
+        private static readonly SKFont s_monoFont = SKFonts.InfoWidgetFont; // Consolas 12, subpixel AA
 
         private static DeviceAimbotConfig Config => App.Config.Device;
         private readonly MemDMA _memory;
@@ -54,6 +80,8 @@ namespace LoneEftDmaRadar.UI.Misc
         private ulong _cachedNewShotRecoil;
         private float _lastRecoilAmount = 1.0f;
         private float _lastSwayAmount = 1.0f;
+        
+        private readonly List<string> _debugLines = new List<string>(64);
         #endregion
 
         private void SendDeviceMove(int dx, int dy)
@@ -883,7 +911,8 @@ private static float RadToDeg(float radians)
         {
             try
             {
-                var lines = new List<string>();
+                var lines = _debugLines;
+                lines.Clear();
 
                 // Header
                 lines.Add("=== DeviceAimbot AIMBOT DEBUG ===");
@@ -993,48 +1022,16 @@ private static float RadToDeg(float radians)
                 float y = 30;
                 float lineHeight = 18;
 
-                using var bgPaint = new SKPaint
-                {
-                    Color = new SKColor(0, 0, 0, 180),
-                    Style = SKPaintStyle.Fill,
-                    IsAntialias = true
-                };
-
-                using var textPaint = new SKPaint
-                {
-                    Color = SKColors.White,
-                    TextSize = 14,
-                    IsAntialias = true,
-                    Typeface = SKTypeface.FromFamilyName("Consolas", SKFontStyle.Normal)
-                };
-
-                using var headerPaint = new SKPaint
-                {
-                    Color = SKColors.Yellow,
-                    TextSize = 14,
-                    IsAntialias = true,
-                    Typeface = SKTypeface.FromFamilyName("Consolas", SKFontStyle.Bold)
-                };
-
-                using var shadowPaint = new SKPaint
-                {
-                    Color = SKColors.Black,
-                    TextSize = 14,
-                    IsAntialias = true,
-                    Style = SKPaintStyle.Stroke,
-                    StrokeWidth = 3,
-                    Typeface = SKTypeface.FromFamilyName("Consolas", SKFontStyle.Bold)
-                };
-
                 // Background size
                 float maxWidth = 0;
                 foreach (var line in lines)
                 {
-                    float width = textPaint.MeasureText(line);
+                    // Measure using SKFont (avoids deprecated SKPaint.MeasureText)
+                    var width = s_monoFont.MeasureText(line, out _);
                     if (width > maxWidth) maxWidth = width;
                 }
 
-                canvas.DrawRect(x - 5, y - 20, maxWidth + 25, lines.Count * lineHeight + 20, bgPaint);
+                canvas.DrawRect(x - 5, y - 20, maxWidth + 25, lines.Count * lineHeight + 20, s_bgPaint);
 
                 // Text with shadow (fake bold / shading)
                 foreach (var line in lines)
@@ -1044,11 +1041,12 @@ private static float RadToDeg(float radians)
                                 line == "Settings:" ||
                                 line == "Target Filters:" ||
                                 line == "Players (this scan):"
-                        ? headerPaint
-                        : textPaint;
+                        ? s_headerPaint
+                        : s_textPaint;
 
-                    canvas.DrawText(line, x + 1.5f, y + 1.5f, shadowPaint);
-                    canvas.DrawText(line, x, y, paint);
+                    // New DrawText overload: specify align + SKFont + SKPaint
+                    canvas.DrawText(line, x + 1.5f, y + 1.5f, SKTextAlign.Left, s_monoFont, s_shadowPaint);
+                    canvas.DrawText(line, x, y, SKTextAlign.Left, s_monoFont, paint);
                     y += lineHeight;
                 }
             }
