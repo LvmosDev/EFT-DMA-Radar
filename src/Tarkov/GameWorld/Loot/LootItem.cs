@@ -129,7 +129,7 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
         /// <summary>
         /// True if this item is wishlisted.
         /// </summary>
-        public bool IsWishlisted => Config.Loot.ShowWishlist && LocalPlayer.WishlistItems.Contains(ID);
+        public bool IsWishlisted => false; // wishlist removed
 
         /// <summary>
         /// True if this item is marked as a quest item by the game data.
@@ -182,7 +182,7 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
             {
                 if (Blacklisted)
                     return false;
-                return _item.Important || IsWishlisted;
+                return _item.Important; // drop wishlist influence
             }
         }
 
@@ -273,8 +273,6 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
         {
             if (IsQuestItem)
                 return new(SKPaints.PaintQuestItem, SKPaints.TextQuestItem);
-            if (IsWishlisted)
-                return new(SKPaints.PaintWishlistItem, SKPaints.TextWishlistItem);
             if (LootFilter.ShowBackpacks && IsBackpack)
                 return new(SKPaints.PaintBackpacks, SKPaints.TextBackpacks);
             if (LootFilter.ShowMeds && IsMeds)
@@ -282,7 +280,6 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
             if (LootFilter.ShowFood && IsFood)
                 return new(SKPaints.PaintFood, SKPaints.TextFood);
             var filterColor = CustomFilter?.Color;
-
             if (!string.IsNullOrEmpty(filterColor))
             {
                 var filterPaints = GetFilterPaints(filterColor);

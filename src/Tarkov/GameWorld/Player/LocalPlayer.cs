@@ -27,23 +27,20 @@ SOFTWARE.
 */
 
 using System.Diagnostics;
+using LoneEftDmaRadar.Tarkov.Unity;
 using LoneEftDmaRadar.Tarkov.Unity.Structures;
 using LoneEftDmaRadar.UI.Misc;
+using VmmSharpEx.Scatter;
 
 namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
 {
     public sealed class LocalPlayer : ClientPlayer
     {
-        public static ulong HandsController { get; private set; }
+        public static ulong HandsController { get; private set; } // restore static for existing code using it
         /// <summary>
         /// Firearm Manager for tracking weapon/ammo/ballistics.
         /// </summary>
         public FirearmManager FirearmManager { get; private set; }
-        /// <summary>
-        /// All Items on the Player's WishList.
-        /// </summary>
-        public static IReadOnlySet<string> WishlistItems => _wishlistItems;
-        private static readonly HashSet<string> _wishlistItems = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Spawn Point.

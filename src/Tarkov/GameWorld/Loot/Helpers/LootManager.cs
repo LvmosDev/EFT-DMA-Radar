@@ -33,7 +33,7 @@ using LoneEftDmaRadar.Tarkov.Unity.Structures;
 using LoneEftDmaRadar.UI.Loot;
 using LoneEftDmaRadar.UI.Misc;
 
-namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot.Helpers
+namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
 {
     public sealed class LootManager
     {
@@ -52,6 +52,11 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot.Helpers
         /// All unfiltered loot.
         /// </summary>
         public IEnumerable<LootItem> AllLoot => _loot.Values;
+
+        /// <summary>
+        /// All Static Containers on the map.
+        /// </summary>
+        public IEnumerable<StaticLootContainer> StaticContainers => _loot.Values.OfType<StaticLootContainer>();
 
         public LootManager(ulong localGameWorld)
         {
@@ -74,10 +79,9 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot.Helpers
                 {
                     var filter = LootFilter.Create();
                     FilteredLoot = _loot.Values?
-                        .OfType<LootItem>()
                         .Where(x => filter(x))
-                        .OrderByDescending(x => x.Important)
-                        .ThenByDescending(x => x?.Price ?? 0)
+                        .OrderBy(x => x.Important)
+                        .ThenBy(x => x?.Price ?? 0)
                         .ToList();
                 }
                 catch { }
@@ -269,10 +273,10 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot.Helpers
                     var id = mongoId.ReadString();
                     if (isQuestItem)
                     {
-                         var shortNamePtr = Memory.ReadPtr(itemTemplate + Offsets.ItemTemplate.ShortName);
+                        var shortNamePtr = Memory.ReadPtr(itemTemplate + Offsets.ItemTemplate.ShortName);
                         var shortName = Memory.ReadUnicodeString(shortNamePtr, 128);
                         DebugLogger.LogDebug(shortName);
-                        _ = _loot.TryAdd(p.ItemBase, new LootItem(id, $"Q_{shortName}", pos));
+                        _ = _loot.TryAdd(p.ItemBase, new LootItem(id, $"Q_{shortName}", pos, isQuestItem: true));
                     }
                     else
                     {
