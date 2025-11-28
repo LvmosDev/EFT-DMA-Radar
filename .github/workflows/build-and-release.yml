@@ -164,7 +164,7 @@ jobs:
           vpk pack 
           --packId "${{ env.PACK_ID }}" 
           --packVersion "${{ env.VERSION_NUM }}" 
-          --packDirectory "publish" 
+          --packDir "publish" 
           --mainExe "${{ env.MAIN_EXE }}" 
           --packTitle "${{ env.APP_NAME }}"
         shell: pwsh
