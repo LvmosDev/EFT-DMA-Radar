@@ -39,6 +39,7 @@ using LoneEftDmaRadar.UI.Radar.Views;
 using LoneEftDmaRadar.UI.Skia;
 using SkiaSharp.Views.WPF;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace LoneEftDmaRadar.UI.Radar.ViewModels
 {
@@ -157,6 +158,9 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
         private Vector2 _lastMousePosition;
         private Vector2 _mapPanPosition;
         private long _lastRadarFrameTicks;
+        private DispatcherTimer _renderTimer;
+        private string _lastTabHeader;
+        private int _appliedMaxFps;
 
         /// <summary>
         /// Skia Radar Viewport.
@@ -213,7 +217,38 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
                 InfoWidget = new PlayerInfoWidget(Radar, App.Config.InfoWidget.Location,
                     App.Config.InfoWidget.Minimized, App.Config.UI.UIScale);
                 Radar.PaintSurface += Radar_PaintSurface;
+
+                ConfigureRenderLoop();
             });
+        }
+
+        private void ConfigureRenderLoop()
+        {
+            int maxFps = App.Config.UI.RadarMaxFPS;
+            _appliedMaxFps = maxFps;
+            // Timer-driven loop avoids blocking sleeps on UI thread.
+            if (maxFps > 0)
+            {
+                // Drive frames at desired rate
+                Radar.RenderContinuously = false;
+                _renderTimer?.Stop();
+                _renderTimer = new DispatcherTimer(DispatcherPriority.Render)
+                {
+                    Interval = TimeSpan.FromMilliseconds(Math.Max(1.0, 1000.0 / maxFps))
+                };
+                _renderTimer.Tick += (_, __) =>
+                {
+                    try { Radar.InvalidateVisual(); } catch { /* ignore */ }
+                };
+                _renderTimer.Start();
+            }
+            else
+            {
+                // Unlimited: let Skia push frames
+                _renderTimer?.Stop();
+                _renderTimer = null;
+                Radar.RenderContinuously = true;
+            }
         }
 
         #endregion
@@ -233,8 +268,9 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
             var inRaid = InRaid;
             var canvas = e.Surface.Canvas;
             // FPS cap for radar rendering to free headroom for ESP.
-            int maxFps = 45;
-            if (maxFps > 0)
+            int maxFps = App.Config.UI.RadarMaxFPS;
+            // Only sleep-throttle when running in RenderContinuously mode.
+            if (maxFps > 0 && Radar.RenderContinuously)
             {
                 long now = Stopwatch.GetTimestamp();
                 double elapsedMs = (now - _lastRadarFrameTicks) * 1000.0 / Stopwatch.Frequency;
@@ -242,7 +278,7 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
                 double waitMs = targetMs - elapsedMs;
                 if (waitMs > 0)
                 {
-                    Thread.Sleep((int)Math.Min(waitMs, 50)); // block briefly to align with target frame time
+                    Thread.Sleep((int)Math.Min(waitMs, 50));
                     now = Stopwatch.GetTimestamp();
                 }
                 _lastRadarFrameTicks = now;
@@ -277,7 +313,8 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
                     }
                     // Prepare to draw Game Map
                     EftMapParams mapParams; // Drawing Source
-                    if (MainWindow.Instance?.Radar?.Overlay?.ViewModel?.IsMapFreeEnabled ?? false) // Map fixed location, click to pan map
+                    bool mapFree = MainWindow.Instance?.Radar?.Overlay?.ViewModel?.IsMapFreeEnabled ?? false;
+                    if (mapFree) // Map fixed location, click to pan map
                     {
                         if (_mapPanPosition == default)
                         {
@@ -522,14 +559,17 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
         /// <summary>
         /// Set the Map Name on Radar Tab.
         /// </summary>
-        private static void SetMapName()
+        private void SetMapName()
         {
             string map = EftMapManager.Map?.Config?.Name;
             string name = map is null ?
                 "Radar" : $"Radar ({map})";
+            if (_lastTabHeader == name)
+                return;
             if (MainWindow.Instance?.RadarTab is TabItem tab)
             {
                 tab.Header = name;
+                _lastTabHeader = name;
             }
         }
 
@@ -542,6 +582,12 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
             {
                 // Increment status order
                 StatusOrder++;
+                // Reconfigure frame pacing if user changed it in Settings
+                int cfgFps = App.Config.UI.RadarMaxFPS;
+                if (cfgFps != _appliedMaxFps)
+                {
+                    _parent.Dispatcher.Invoke(ConfigureRenderLoop);
+                }
                 // Parse FPS and set window title
                 int fps = Interlocked.Exchange(ref _fps, 0); // Get FPS -> Reset FPS counter
                 string title = $"{App.Name} ({fps} fps)";

@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build, Release and Velopack
 
 on:
   push:
@@ -22,6 +22,8 @@ jobs:
       PROJECT: src/Lone-EFT-DMA-Radar.csproj
       RUNTIME: win-x64
       APP_NAME: EFT-DMA-Radar
+      MAIN_EXE: Lone-EFT-DMA-Radar.exe
+      PACK_ID: Lone-EFT-DMA-Radar
 
     steps:
       - name: Checkout
@@ -135,7 +137,7 @@ jobs:
             }
             return ['### Changes since previous release', ...notes].join('\n');
 
-      - name: Create GitHub Release and upload asset
+      - name: Create GitHub Release and upload asset (zip)
         if: github.repository_owner == 'Lum0s36'
         uses: softprops/action-gh-release@v2
         env:
@@ -148,3 +150,35 @@ jobs:
           prerelease: false
           files: |
             ${{ env.APP_NAME }}_${{ env.VERSION }}.zip
+
+      - name: Install Velopack CLI
+        if: github.repository_owner == 'Lum0s36'
+        run: |
+          dotnet tool install -g vpk
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+        shell: pwsh
+
+      - name: Package with Velopack
+        if: github.repository_owner == 'Lum0s36'
+        run: >
+          vpk pack 
+          --packId "${{ env.PACK_ID }}" 
+          --packVersion "${{ env.VERSION_NUM }}" 
+          --packDirectory "publish" 
+          --mainExe "${{ env.MAIN_EXE }}" 
+          --packTitle "${{ env.APP_NAME }}"
+        shell: pwsh
+
+      - name: Upload Velopack artifacts to release
+        if: github.repository_owner == 'Lum0s36'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          body: ${{ steps.release_notes.outputs.result }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/*
