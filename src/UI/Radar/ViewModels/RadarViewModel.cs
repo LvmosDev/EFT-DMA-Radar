@@ -268,21 +268,19 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
             var inRaid = InRaid;
             var canvas = e.Surface.Canvas;
 
-            // FPS cap for radar rendering - skip frames instead of blocking thread
+            // FPS cap for radar rendering - only sleep-throttle when running in RenderContinuously mode
             int maxFps = App.Config.UI.RadarMaxFPS;
-            if (maxFps > 0)
+            if (maxFps > 0 && Radar.RenderContinuously)
             {
                 long now = Stopwatch.GetTimestamp();
                 double elapsedMs = (now - _lastRadarFrameTicks) * 1000.0 / Stopwatch.Frequency;
                 double targetMs = 1000.0 / maxFps;
-
-                if (elapsedMs < targetMs)
+                double waitMs = targetMs - elapsedMs;
+                if (waitMs > 0)
                 {
-                    // Skip this frame - not enough time elapsed to maintain FPS cap
-                    // This prevents blocking the UI thread and allows ESP to render smoothly
-                    return;
+                    Thread.Sleep((int)Math.Min(waitMs, 50)); // brief sleep to align with target frame time
+                    now = Stopwatch.GetTimestamp();
                 }
-
                 _lastRadarFrameTicks = now;
             }
             else
