@@ -8,12 +8,12 @@ namespace SDK
         public readonly partial struct GameWorld
 		{
 			public const uint BtrController = 0x20; // EFT.Vehicle.BtrController
-			public const uint LocationId = 0xB8; // string
-			public const uint LootList = 0x178; // System.Collections.Generic.List<IKillable>
-			public const uint RegisteredPlayers = 0x190; // System.Collections.Generic.List<IPlayer>
-			public const uint MainPlayer = 0x1E0; // EFT.Player
-			public const uint SynchronizableObjectLogicProcessor = 0x218; // EFT.SynchronizableObjects.SynchronizableObjectLogicProcessor
-			public const uint Grenades = 0x258; // DictionaryListHydra<int, Throwable>
+			public const uint LocationId = 0xC0; // string - UPDATED from 0xB8
+			public const uint LootList = 0x180; // System.Collections.Generic.List<IKillable> - UPDATED from 0x178
+			public const uint RegisteredPlayers = 0x198; // System.Collections.Generic.List<IPlayer> - UPDATED from 0x190
+			public const uint MainPlayer = 0x1E8; // EFT.Player - UPDATED from 0x1E0
+			public const uint SynchronizableObjectLogicProcessor = 0x220; // EFT.SynchronizableObjects.SynchronizableObjectLogicProcessor - UPDATED from 0x218
+			public const uint Grenades = 0x260; // DictionaryListHydra<int, Throwable> - UPDATED from 0x258
 		}
 
         public readonly partial struct SynchronizableObject
