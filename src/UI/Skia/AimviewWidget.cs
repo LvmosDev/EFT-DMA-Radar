@@ -441,11 +441,32 @@ namespace LoneEftDmaRadar.UI.Skia
                 relY * _bitmap.Height
             );
 
-            // Calculate scale factor based on view depth
-            // Objects closer in view-space should appear larger
-            // Reference: at 10m depth = 1.0 scale, at 5m = 2.0, at 20m = 0.5
-            const float referenceDepth = 10f;
-            scale = Math.Clamp(referenceDepth / Math.Max(viewDepth, 1f), 0.2f, 5f);
+            // Calculate scale based on "pixels per meter" at this depth
+            // Project a second point that's 1 meter to the right in view-space
+            var offsetWorld = world + new Vector3(1f, 0f, 0f); // 1 meter offset
+            
+            if (CameraManagerNew.WorldToScreen(in offsetWorld, out var offsetScreen, out _, onScreenCheck: false, useTolerance: false))
+            {
+                // Calculate pixel distance for 1 meter world-space offset
+                float pixelDist = Vector2.Distance(
+                    new Vector2(espScreen.X, espScreen.Y),
+                    new Vector2(offsetScreen.X, offsetScreen.Y)
+                );
+                
+                // Normalize to viewport size and scale to widget
+                float normalizedDist = (pixelDist / viewport.Width) * _bitmap.Width;
+                
+                // Reference: at some reference distance, 1 meter = X pixels
+                // This gives us the "magnification" relative to that reference
+                const float referencePixelsPerMeter = 30f; // Adjust this value for desired base size
+                scale = Math.Clamp(normalizedDist / referencePixelsPerMeter, 0.3f, 6f);
+            }
+            else
+            {
+                // Fallback to depth-only scaling if offset projection fails
+                const float referenceDepth = 10f;
+                scale = Math.Clamp(referenceDepth / Math.Max(viewDepth, 1f), 0.3f, 6f);
+            }
 
             // Check if within widget bounds (allow some tolerance for edge cases)
             const float tolerance = 100f;
