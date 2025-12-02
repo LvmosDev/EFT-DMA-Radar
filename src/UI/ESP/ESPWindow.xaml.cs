@@ -692,30 +692,37 @@ namespace LoneEftDmaRadar.UI.ESP
 
             // Draw head marker
             bool drawHeadCircle = isAI ? App.Config.UI.EspHeadCircleAI : App.Config.UI.EspHeadCirclePlayers;
-            if (drawHeadCircle)
+            if (drawHeadCircle && player.Skeleton?.BoneTransforms != null)
             {
-                var head = player.GetBonePos(Bones.HumanHead);
-                var headTop = head;
-                headTop.Y += 0.18f; // small offset to estimate head height
-
-                if (TryProject(head, screenWidth, screenHeight, out var headScreen) &&
-                    TryProject(headTop, screenWidth, screenHeight, out var headTopScreen))
+                // Use Skeleton.BoneTransforms directly (same as DeviceAimbot)
+                if (player.Skeleton.BoneTransforms.TryGetValue(Bones.HumanHead, out var headBone))
                 {
-                    float radius;
-                    if (hasBox)
+                    var head = headBone.Position;
+                    if (head != Vector3.Zero && !float.IsNaN(head.X) && !float.IsInfinity(head.X))
                     {
-                        // scale with on-screen box to stay proportional to the model
-                        radius = MathF.Min(bbox.Width, bbox.Height) * 0.1f;
-                    }
-                    else
-                    {
-                        // fallback: use projected head height
-                        var dy = MathF.Abs(headTopScreen.Y - headScreen.Y);
-                        radius = dy * 0.65f;
-                    }
+                        var headTop = head;
+                        headTop.Y += 0.18f; // small offset to estimate head height
 
-                    radius = Math.Clamp(radius, 2f, 12f);
-                    ctx.DrawCircle(ToRaw(headScreen), radius, color, filled: false);
+                        if (TryProject(head, screenWidth, screenHeight, out var headScreen) &&
+                            TryProject(headTop, screenWidth, screenHeight, out var headTopScreen))
+                        {
+                            float radius;
+                            if (hasBox)
+                            {
+                                // scale with on-screen box to stay proportional to the model
+                                radius = MathF.Min(bbox.Width, bbox.Height) * 0.1f;
+                            }
+                            else
+                            {
+                                // fallback: use projected head height
+                                var dy = MathF.Abs(headTopScreen.Y - headScreen.Y);
+                                radius = dy * 0.65f;
+                            }
+
+                            radius = Math.Clamp(radius, 2f, 12f);
+                            ctx.DrawCircle(ToRaw(headScreen), radius, color, filled: false);
+                        }
+                    }
                 }
             }
 
@@ -727,10 +734,19 @@ namespace LoneEftDmaRadar.UI.ESP
 
         private void DrawSkeleton(Dx9RenderContext ctx, AbstractPlayer player, float w, float h, DxColor color, float thickness)
         {
+            // Check if skeleton exists (same as DeviceAimbot)
+            if (player.Skeleton?.BoneTransforms == null)
+                return;
+
             foreach (var (from, to) in _boneConnections)
             {
-                var p1 = player.GetBonePos(from);
-                var p2 = player.GetBonePos(to);
+                // Use Skeleton.BoneTransforms directly (same as DeviceAimbot) for fresh positions
+                if (!player.Skeleton.BoneTransforms.TryGetValue(from, out var bone1) ||
+                    !player.Skeleton.BoneTransforms.TryGetValue(to, out var bone2))
+                    continue;
+
+                var p1 = bone1.Position;
+                var p2 = bone2.Position;
 
                 // Skip if either bone position is invalid (zero or NaN)
                 if (p1 == Vector3.Zero || p2 == Vector3.Zero)

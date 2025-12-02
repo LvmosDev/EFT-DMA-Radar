@@ -247,6 +247,10 @@ namespace LoneEftDmaRadar.UI.Skia
                 if (App.Config.UI.MaxDistance > 0 && distance > App.Config.UI.MaxDistance)
                     continue;
 
+                // Check if skeleton exists
+                if (player.Skeleton?.BoneTransforms == null)
+                    continue;
+
                 var paint = GetPaint(player);
 
                 // Calculate distance-based scale for line thickness
@@ -254,8 +258,14 @@ namespace LoneEftDmaRadar.UI.Skia
 
                 foreach (var (from, to) in _boneConnections)
                 {
-                    var p1 = player.GetBonePos(from);
-                    var p2 = player.GetBonePos(to);
+                    // Use Skeleton.BoneTransforms directly (same as DeviceAimbot) for fresh positions
+                    if (!player.Skeleton.BoneTransforms.TryGetValue(from, out var bone1) ||
+                        !player.Skeleton.BoneTransforms.TryGetValue(to, out var bone2))
+                        continue;
+
+                    var p1 = bone1.Position;
+                    var p2 = bone2.Position;
+                    
                     if (p1 == Vector3.Zero || p2 == Vector3.Zero) continue;
                     if (TryProject(p1, out var s1) && TryProject(p2, out var s2))
                     {
