@@ -5,7 +5,9 @@
  */
 
 using Squirrel;
+using System;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace LoneEftDmaRadar.Misc
 {
