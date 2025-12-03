@@ -67,6 +67,10 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
 
         public override void Draw(SKCanvas canvas, EftMapParams mapParams, LocalPlayer localPlayer)
         {
+            // ✅ Respect the master "Show Static Containers" checkbox
+            if (!App.Config.Containers.Enabled)
+                return;
+
             if (Position.WithinDistance(localPlayer.Position, App.Config.Containers.DrawDistance))
             {
                 var heightDiff = Position.Y - localPlayer.Position.Y;

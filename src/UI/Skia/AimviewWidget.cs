@@ -16,7 +16,7 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESSED OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -30,6 +30,7 @@ using LoneEftDmaRadar.Tarkov.GameWorld.Player;
 using LoneEftDmaRadar.Tarkov.GameWorld.Player.Helpers;
 using LoneEftDmaRadar.Tarkov.GameWorld.Exits;
 using LoneEftDmaRadar.Tarkov.GameWorld.Explosives;
+using LoneEftDmaRadar.Tarkov.GameWorld.Loot; // ✅ Add for StaticLootContainer
 using LoneEftDmaRadar.Tarkov.Unity.Structures; // for Bones enum
 using LoneEftDmaRadar.UI.Misc;
 using SkiaSharp.Views.WPF;
@@ -84,6 +85,7 @@ namespace LoneEftDmaRadar.UI.Skia
 
                 DrawExfils(localPlayer);
                 DrawExplosives(localPlayer);
+                DrawStaticContainers(localPlayer); // ✅ Add container drawing
                 DrawPlayersAndAIAsSkeletons(localPlayer);
                 DrawFilteredLoot(localPlayer);
                 DrawCrosshair();
@@ -223,6 +225,53 @@ namespace LoneEftDmaRadar.UI.Skia
             }
         }
 
+        private void DrawStaticContainers(LocalPlayer localPlayer)
+        {
+            // ✅ Controlled by Radar "Show Static Containers" checkbox
+            if (!App.Config.Containers.Enabled)
+                return;
+
+            var containers = Memory.Game?.Loot?.AllLoot?.OfType<StaticLootContainer>();
+            if (containers is null)
+                return;
+
+            bool selectAll = App.Config.Containers.SelectAll;
+            var selected = App.Config.Containers.Selected;
+            float maxRenderDistance = App.Config.Containers.DrawDistance;
+
+            foreach (var container in containers)
+            {
+                var id = container.ID ?? "UNKNOWN";
+                if (!selectAll && !selected.ContainsKey(id))
+                    continue;
+
+                float distance = Vector3.Distance(localPlayer.Position, container.Position);
+                if (distance > maxRenderDistance)
+                    continue;
+
+                if (TryProject(container.Position, out var screen, out float scale, localPlayer))
+                {
+                    // Scale radius with perspective (from TryProject)
+                    float r = Math.Clamp(3f * App.Config.UI.UIScale * scale, 2f, 15f);
+
+                    var paint = SKPaints.PaintContainerLoot;
+                    _canvas.DrawCircle(screen.X, screen.Y, r, paint);
+
+                    // Scale font with perspective
+                    float baseFontSize = SKFonts.EspWidgetFont.Size * scale * 0.9f;
+                    float fontSize = Math.Clamp(baseFontSize, 8f, 20f);
+                    using var font = new SKFont(SKFonts.EspWidgetFont.Typeface, fontSize) { Subpixel = true };
+                    var textPaint = new SKPaint
+                    {
+                        Color = SKPaints.PaintContainerLoot.Color,
+                        IsStroke = false,
+                        IsAntialias = true
+                    };
+                    _canvas.DrawText(container.Name ?? "Container", new SKPoint(screen.X + r + 3, screen.Y + r + 1), SKTextAlign.Left, font, textPaint);
+                }
+            }
+        }
+
         private void DrawPlayersAndAIAsSkeletons(LocalPlayer localPlayer)
         {
             if (!App.Config.AimviewWidget.ShowAI && !App.Config.AimviewWidget.ShowEnemyPlayers)
@@ -233,6 +282,8 @@ namespace LoneEftDmaRadar.UI.Skia
 
             if (players is null)
                 return;
+
+            bool drawHeadCircles = App.Config.AimviewWidget.ShowHeadCircle;
 
             foreach (var player in players)
             {
@@ -277,6 +328,30 @@ namespace LoneEftDmaRadar.UI.Skia
                         _canvas.DrawLine(s1.X, s1.Y, s2.X, s2.Y, paint);
                     }
                 }
+
+                // Draw head circle if enabled
+                if (drawHeadCircles && player.Skeleton.BoneTransforms.TryGetValue(Bones.HumanHead, out var headBone))
+                {
+                    var head = headBone.Position;
+                    if (head != Vector3.Zero && !float.IsNaN(head.X) && !float.IsInfinity(head.X))
+                    {
+                        var headTop = head;
+                        headTop.Y += 0.18f; // small offset to estimate head height
+
+                        if (TryProject(head, out var headScreen) && TryProject(headTop, out var headTopScreen))
+                        {
+                            // Calculate radius based on projected head height
+                            var dy = MathF.Abs(headTopScreen.Y - headScreen.Y);
+                            float radius = dy * 0.65f;
+                            radius = Math.Clamp(radius, 2f, 12f);
+                            
+                            // Draw circle (not filled, just outline)
+                            paint.Style = SKPaintStyle.Stroke;
+                            _canvas.DrawCircle(headScreen.X, headScreen.Y, radius, paint);
+                            paint.Style = SKPaintStyle.Fill; // Reset to fill for skeleton lines
+                        }
+                    }
+                }
             }
         }
 
@@ -295,6 +370,10 @@ namespace LoneEftDmaRadar.UI.Skia
 
             foreach (var item in lootItems)
             {
+                // ✅ Skip containers - they're drawn separately in DrawStaticContainers()
+                if (item is StaticLootContainer)
+                    continue;
+
                 if (item.IsQuestItem && !App.Config.AimviewWidget.ShowQuestItems)
                     continue;
 

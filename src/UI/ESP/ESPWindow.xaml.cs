@@ -518,7 +518,8 @@ namespace LoneEftDmaRadar.UI.ESP
 
         private void DrawStaticContainers(Dx9RenderContext ctx, float screenWidth, float screenHeight, LocalPlayer localPlayer)
         {
-            if (!App.Config.Containers.Enabled)
+            // ? ESP uses its own separate checkbox (App.Config.UI.EspContainers)
+            if (!App.Config.UI.EspContainers)
                 return;
 
             var containers = Memory.Game?.Loot?.AllLoot?.OfType<StaticLootContainer>();

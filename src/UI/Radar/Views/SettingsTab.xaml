@@ -277,6 +277,10 @@ Configure what entities are rendered in the Aimview widget.
                         <CheckBox Content="Show Enemy Players"
                                   ToolTip="Show enemy players in Aimview widget"
                                   IsChecked="{Binding AimviewShowEnemyPlayers, Mode=TwoWay}"
+                                  Margin="0,0,16,8" />
+                        <CheckBox Content="Head Circle"
+                                  ToolTip="Draw head circles for players and AI in Aimview widget"
+                                  IsChecked="{Binding AimviewShowHeadCircle, Mode=TwoWay}"
                                   Margin="0,0,0,8" />
                     </WrapPanel>
                     

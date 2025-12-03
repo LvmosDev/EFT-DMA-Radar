@@ -1139,6 +1139,12 @@ namespace LoneEftDmaRadar
         /// </summary>
         [JsonPropertyName("showEnemyPlayers")]
         public bool ShowEnemyPlayers { get; set; } = true;
+
+        /// <summary>
+        /// Draw head circles for players and AI in Aimview.
+        /// </summary>
+        [JsonPropertyName("showHeadCircle")]
+        public bool ShowHeadCircle { get; set; } = false;
     }
 
     public sealed class InfoWidgetConfig

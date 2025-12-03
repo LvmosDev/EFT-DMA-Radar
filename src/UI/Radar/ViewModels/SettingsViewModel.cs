@@ -523,6 +523,19 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
             }
         }
 
+        public bool AimviewShowHeadCircle
+        {
+            get => App.Config.AimviewWidget.ShowHeadCircle;
+            set
+            {
+                if (App.Config.AimviewWidget.ShowHeadCircle != value)
+                {
+                    App.Config.AimviewWidget.ShowHeadCircle = value;
+                    OnPropertyChanged(nameof(AimviewShowHeadCircle));
+                }
+            }
+        }
+
         #endregion
 
     }
