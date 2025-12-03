@@ -84,8 +84,13 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
 
             try
             {
-                // Read the _isSearched boolean flag at offset 0x168
-                Searched = Memory.ReadValue<bool>(_interactiveClass + Offsets.LootableContainer._isSearched);
+                // Check if someone is currently interacting with the container (opened/searching)
+                // This mirrors the old implementation: InteractingPlayer != 0
+                var interactingPlayer = Memory.ReadValue<ulong>(_interactiveClass + Offsets.LootableContainer.InteractingPlayer);
+                if (interactingPlayer != 0)
+                {
+                    Searched = true;
+                }
             }
             catch
             {
