@@ -59,7 +59,7 @@ namespace LoneEftDmaRadar.UI.Loot
                 {
                     if (x.IsQuestItem && showQuestItems)
                         return true;
-                    return (x.IsRegularLoot || x.IsValuableLoot || x.IsImportant || x.IsWishlisted) ||
+                    return (x.IsRegularLoot || x.IsValuableLoot || x.IsImportant) ||
                                 (showBackpacks && x.IsBackpack) ||
                                 (showMeds && x.IsMeds) ||
                                 (showFood && x.IsFood);
@@ -73,6 +73,11 @@ namespace LoneEftDmaRadar.UI.Loot
                     if (item is LootCorpse)
                     {
                         return true;
+                    }
+                    if (item is StaticLootContainer container)
+                    {
+                        // Show if SelectAll is enabled OR if this specific container is selected
+                        return App.Config.Containers.SelectAll || App.Config.Containers.Selected.ContainsKey(container.ID);
                     }
                     if (p(item))
                     {
@@ -93,6 +98,11 @@ namespace LoneEftDmaRadar.UI.Loot
                     if (item is LootAirdrop)
                     {
                         return true;
+                    }
+                    if (item is StaticLootContainer container)
+                    {
+                        // Show if SelectAll is enabled OR if this specific container is selected
+                        return App.Config.Containers.SelectAll || App.Config.Containers.Selected.ContainsKey(container.ID);
                     }
                     if (item.ContainsSearchPredicate(p))
                     {

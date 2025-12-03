@@ -145,6 +145,11 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
         /// Currently 'Moused Over' Group.
         /// </summary>
         public static int? MouseoverGroup { get; private set; }
+        
+        /// <summary>
+        /// Currently 'Moused Over' Item (for highlighting on radar). PUBLIC static accessor for LootItem.Draw().
+        /// </summary>
+        public static IMouseoverEntity CurrentMouseoverItem { get; private set; }
 
         #endregion
 
@@ -766,6 +771,7 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
                 {
                     case AbstractPlayer player:
                         _mouseOverItem = player;
+                        CurrentMouseoverItem = player;
                         MouseoverGroup = (player.IsHumanHostile && player.GroupID != -1)
                             ? player.GroupID
                             : (int?)null;
@@ -773,6 +779,7 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
 
                     case LootCorpse corpseObj:
                         _mouseOverItem = corpseObj;
+                        CurrentMouseoverItem = corpseObj;
                         var corpse = corpseObj.Player;
                         MouseoverGroup = (corpse?.IsHumanHostile == true && corpse.GroupID != -1)
                             ? corpse.GroupID
@@ -781,16 +788,26 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
 
                     case StaticLootContainer ctr:
                         _mouseOverItem = ctr;
+                        CurrentMouseoverItem = ctr;
                         MouseoverGroup = null;
                         break;
 
                     case LootAirdrop airdrop:
                         _mouseOverItem = airdrop;
+                        CurrentMouseoverItem = airdrop;
                         MouseoverGroup = null;
                         break;
 
                     case IExitPoint exit:
                         _mouseOverItem = closest;
+                        CurrentMouseoverItem = closest;
+                        MouseoverGroup = null;
+                        break;
+                    
+                    // ✅ Add case for regular LootItem (filtered loot items)
+                    case LootItem lootItem:
+                        _mouseOverItem = lootItem;
+                        CurrentMouseoverItem = lootItem;
                         MouseoverGroup = null;
                         break;
 
@@ -802,6 +819,7 @@ namespace LoneEftDmaRadar.UI.Radar.ViewModels
                 void ClearRefs()
                 {
                     _mouseOverItem = null;
+                    CurrentMouseoverItem = null;
                     MouseoverGroup = null;
                 }
             }

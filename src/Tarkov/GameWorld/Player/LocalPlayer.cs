@@ -27,6 +27,7 @@ SOFTWARE.
 */
 
 using System.Diagnostics;
+using Collections.Pooled;
 using LoneEftDmaRadar.Tarkov.Unity;
 using LoneEftDmaRadar.Tarkov.Unity.Structures;
 using LoneEftDmaRadar.UI.Misc;
@@ -36,11 +37,27 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
 {
     public sealed class LocalPlayer : ClientPlayer
     {
-        public static ulong HandsController { get; private set; } // restore static for existing code using it
         /// <summary>
         /// Firearm Manager for tracking weapon/ammo/ballistics.
         /// </summary>
         public FirearmManager FirearmManager { get; private set; }
+        
+        private UnityTransform _lookRaycastTransform;
+
+        /// <summary>
+        /// Local Player's "look" position for accurate POV in aimview.
+        /// Falls back to root position if unavailable.
+        /// </summary>
+        public Vector3 LookPosition => _lookRaycastTransform?.Position ?? this.Position;
+
+        /// <summary>
+        /// Public accessor for Hands Controller (used by FirearmManager).
+        /// </summary>
+        public new ulong HandsController
+        {
+            get => base.HandsController;
+            private set => base.HandsController = value;
+        }
 
         /// <summary>
         /// Spawn Point.
@@ -53,13 +70,14 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
         public string ProfileId { get; }
 
         /// <summary>
-        /// Spawn Point.
+        /// Player name.
         /// </summary>
         public override string Name
         {
             get => "localPlayer";
             set { }
         }
+        
         /// <summary>
         /// Player is Human-Controlled.
         /// </summary>
@@ -113,6 +131,56 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
             catch
             {
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Initializes and updates the look raycast transform using memory scatter reads.
+        /// Called when aimview is enabled.
+        /// </summary>
+        public override void OnRealtimeLoop(VmmScatter scatter)
+        {
+            base.OnRealtimeLoop(scatter);
+
+            try
+            {
+                var transformPtr = Memory.ReadPtr(Base + Offsets.Player._playerLookRaycastTransform, false);
+
+                if (transformPtr != 0x0)
+                    _lookRaycastTransform = new UnityTransform(transformPtr);
+                else
+                    _lookRaycastTransform = null;
+            }
+            catch
+            {
+                _lookRaycastTransform = null;
+            }
+        }
+
+        public override void OnValidateTransforms()
+        {
+            base.OnValidateTransforms();
+
+            if (_lookRaycastTransform is null)
+                return;
+
+            try
+            {
+                var hierarchy = Memory.ReadPtr(_lookRaycastTransform.TransformInternal + UnitySDK.UnityOffsets.TransformAccess_HierarchyOffset);
+                var vertexAddr = Memory.ReadPtr(hierarchy + UnitySDK.UnityOffsets.Hierarchy_VerticesOffset);
+                if (vertexAddr == 0x0)
+                {
+                    DebugLogger.LogWarning("LookRaycast transform changed, updating cached transform...");
+                    var transformPtr = Memory.ReadPtr(Base + Offsets.Player._playerLookRaycastTransform, false);
+                    if (transformPtr != 0x0)
+                        _lookRaycastTransform = new UnityTransform(transformPtr);
+                    else
+                        _lookRaycastTransform = null;
+                }
+            }
+            catch
+            {
+                _lookRaycastTransform = null;
             }
         }
     }

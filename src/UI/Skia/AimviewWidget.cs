@@ -143,19 +143,20 @@ namespace LoneEftDmaRadar.UI.Skia
                 if (distance > maxDistance)
                     continue;
 
-                if (TryProject(exfil.Position, out var screen, out float scale))
+                if (TryProject(exfil.Position, out var screen, out float scale, localPlayer))
                 {
                     var paint = exfil.Status == Exfil.EStatus.Pending
                         ? SKPaints.PaintExfilPending
                         : SKPaints.PaintExfilOpen;
 
-                    // Scale radius based on view depth
-                    float r = Math.Clamp(3f * App.Config.UI.UIScale * scale, 1.5f, 12f);
+                    // Scale radius with perspective (from TryProject)
+                    float r = Math.Clamp(3f * App.Config.UI.UIScale * scale, 2f, 15f);
 
                     _canvas.DrawCircle(screen.X, screen.Y, r, paint);
 
-                    // Scale font with depth
-                    float fontSize = Math.Clamp(SKFonts.EspWidgetFont.Size * scale * 0.9f, 7f, 18f);
+                    // Scale font with perspective
+                    float baseFontSize = SKFonts.EspWidgetFont.Size * scale * 0.9f;
+                    float fontSize = Math.Clamp(baseFontSize, 8f, 20f);
                     using var font = new SKFont(SKFonts.EspWidgetFont.Typeface, fontSize) { Subpixel = true };
                     _canvas.DrawText(exfil.Name, new SKPoint(screen.X + r + 3, screen.Y + r + 1), SKTextAlign.Left, font, SKPaints.TextExfil);
                 }
@@ -180,11 +181,11 @@ namespace LoneEftDmaRadar.UI.Skia
                     if (distance > maxDistance)
                         continue;
 
-                    if (!TryProject(explosive.Position, out var screen, out float scale))
+                    if (!TryProject(explosive.Position, out var screen, out float scale, localPlayer))
                         continue;
 
-                    // Scale radius based on view depth
-                    float r = Math.Clamp(3f * App.Config.UI.UIScale * scale, 1.5f, 12f);
+                    // Scale radius with perspective (from TryProject)
+                    float r = Math.Clamp(3f * App.Config.UI.UIScale * scale, 2f, 15f);
 
                     string label;
                     if (explosive is Tripwire tripwire && tripwire.IsActive)
@@ -202,8 +203,9 @@ namespace LoneEftDmaRadar.UI.Skia
                         continue;
                     }
 
-                    // Scale font with depth
-                    float fontSize = Math.Clamp(SKFonts.EspWidgetFont.Size * scale * 0.9f, 7f, 18f);
+                    // Scale font with perspective
+                    float baseFontSize = SKFonts.EspWidgetFont.Size * scale * 0.9f;
+                    float fontSize = Math.Clamp(baseFontSize, 8f, 20f);
                     using var font = new SKFont(SKFonts.EspWidgetFont.Typeface, fontSize) { Subpixel = true };
                     var textPaint = new SKPaint
                     {
@@ -287,14 +289,12 @@ namespace LoneEftDmaRadar.UI.Skia
             var lootItems = Memory.Game?.Loot?.FilteredLoot;
             if (lootItems is null) return;
 
-            // Use configured render distance or unlimited if max is enabled
             float maxDistance = App.Config.UI.AimviewLootRenderDistanceMax 
                 ? float.MaxValue 
                 : App.Config.UI.AimviewLootRenderDistance;
 
             foreach (var item in lootItems)
             {
-                // Filter quest items based on config
                 if (item.IsQuestItem && !App.Config.AimviewWidget.ShowQuestItems)
                     continue;
 
@@ -302,10 +302,10 @@ namespace LoneEftDmaRadar.UI.Skia
                 if (distance > maxDistance)
                     continue;
 
-                if (TryProject(item.Position, out var screen, out float scale))
+                if (TryProject(item.Position, out var screen, out float scale, localPlayer))
                 {
-                    // Scale radius based on view depth (like bones scale automatically)
-                    float r = Math.Clamp(3f * App.Config.UI.UIScale * scale, 1.5f, 12f);
+                    // Scale radius with perspective (from TryProject)
+                    float r = Math.Clamp(3f * App.Config.UI.UIScale * scale, 2f, 15f);
                     
                     var paint = SKPaints.PaintFilteredLoot;
                     var textPaint = SKPaints.TextFilteredLoot;
@@ -332,8 +332,9 @@ namespace LoneEftDmaRadar.UI.Skia
                     var shortName = string.IsNullOrWhiteSpace(item.ShortName) ? item.Name : item.ShortName;
                     var label = $"{shortName} D:{distance:F0}m";
                     
-                    // Scale font with depth
-                    float fontSize = Math.Clamp(SKFonts.EspWidgetFont.Size * scale * 0.9f, 7f, 18f);
+                    // Scale font with perspective
+                    float baseFontSize = SKFonts.EspWidgetFont.Size * scale * 0.9f;
+                    float fontSize = Math.Clamp(baseFontSize, 8f, 20f);
                     using var font = new SKFont(SKFonts.EspWidgetFont.Typeface, fontSize) { Subpixel = true };
                     _canvas.DrawText(label, new SKPoint(screen.X + r + 3, screen.Y + r + 1), SKTextAlign.Left, font, textPaint);
                 }
@@ -425,7 +426,7 @@ namespace LoneEftDmaRadar.UI.Skia
         }
 
         // Scale CameraManager coordinates to widget size
-        private bool TryProject(in Vector3 world, out SKPoint scr, out float scale)
+        private bool TryProject(in Vector3 world, out SKPoint scr, out float scale, LocalPlayer localPlayer = null)
         {
             scr = default;
             scale = 1f;
@@ -433,8 +434,8 @@ namespace LoneEftDmaRadar.UI.Skia
             if (world == Vector3.Zero)
                 return false;
             
-            // Get projection from CameraManager WITH depth for scaling
-            if (!CameraManagerNew.WorldToScreen(in world, out var espScreen, out float viewDepth, onScreenCheck: false, useTolerance: false))
+            // Get projection from CameraManager (PR #6 version - no depth output)
+            if (!CameraManagerNew.WorldToScreen(in world, out var espScreen, false, false))
             {
                 return false;
             }
@@ -454,49 +455,17 @@ namespace LoneEftDmaRadar.UI.Skia
                 relY * _bitmap.Height
             );
 
-            // Calculate scale based on "pixels per meter" at this depth
-            // Project a second point that's 1 meter to the right in view-space
-            var offsetWorld = world + new Vector3(1f, 0f, 0f); // 1 meter offset
+            // Calculate scale based on distance from PLAYER (not camera) for better scaling effect
+            Vector3 refPos = localPlayer?.Position ?? CameraManagerNew.CameraPosition;
+            float dist = Vector3.Distance(refPos, world);
             
-            if (CameraManagerNew.WorldToScreen(in offsetWorld, out var offsetScreen, out _, onScreenCheck: false, useTolerance: false))
-            {
-                // Calculate pixel distance for 1 meter world-space offset
-                float pixelDist = Vector2.Distance(
-                    new Vector2(espScreen.X, espScreen.Y),
-                    new Vector2(offsetScreen.X, offsetScreen.Y)
-                );
-                
-                // Normalize to viewport size and scale to widget
-                float normalizedDist = (pixelDist / viewport.Width) * _bitmap.Width;
-                
-                // Reference: at some reference distance, 1 meter = X pixels
-                // This gives us the "magnification" relative to that reference
-                const float referencePixelsPerMeter = 30f; // Adjust this value for desired base size
-                scale = Math.Clamp(normalizedDist / referencePixelsPerMeter, 0.3f, 6f);
-                
-                // Compensate for scope magnification to prevent over-zooming with scoped sights
-                // When scoped (e.g., 4x), the FOV is already smaller, making everything appear bigger
-                // We need to divide by magnification to keep consistent visual size
-                float scopeMag = CameraManagerNew.ScopeMagnification;
-                if (scopeMag > 1.0f)
-                {
-                    scale /= scopeMag;
-                }
-            }
-            else
-            {
-                // Fallback to depth-only scaling if offset projection fails
-                const float referenceDepth = 10f;
-                scale = Math.Clamp(referenceDepth / Math.Max(viewDepth, 1f), 0.3f, 6f);
-                
-                // Apply scope magnification compensation
-                float scopeMag = CameraManagerNew.ScopeMagnification;
-                if (scopeMag > 1.0f)
-                {
-                    scale /= scopeMag;
-                }
-            }
-
+            // ✅ Perspective-based scaling - markers get SMALLER at greater distances (natural view)
+            // At close range (5m): scale ~2.0x (larger, more visible)
+            // At medium range (10m): scale ~1.0x (normal size)  
+            // At far range (30m+): scale ~0.33x (smaller, less obtrusive)
+            const float referenceDistance = 10f; // Reference distance for 1.0x scale
+            scale = Math.Clamp(referenceDistance / Math.Max(dist, 1f), 0.3f, 3f);
+            
             // Check if within widget bounds (allow some tolerance for edge cases)
             const float tolerance = 100f;
             if (scr.X < -tolerance || scr.X > _bitmap.Width + tolerance || 
@@ -511,7 +480,7 @@ namespace LoneEftDmaRadar.UI.Skia
         // Overload without scale for compatibility
         private bool TryProject(in Vector3 world, out SKPoint scr)
         {
-            return TryProject(world, out scr, out _);
+            return TryProject(world, out scr, out _, null);
         }
     }
 }

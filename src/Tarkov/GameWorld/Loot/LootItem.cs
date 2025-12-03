@@ -165,11 +165,6 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
         public bool Important => CustomFilter?.Important ?? false;
 
         /// <summary>
-        /// True if this item is wishlisted.
-        /// </summary>
-        public bool IsWishlisted => false; // wishlist removed
-
-        /// <summary>
         /// True if this item is marked as a quest item by the game data.
         /// </summary>
         public bool IsQuestItem => _isQuestItem;
@@ -247,27 +242,52 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
             var heightDiff = Position.Y - localPlayer.Position.Y;
             var point = Position.ToMapPos(mapParams.Map).ToZoomedPos(mapParams);
             MouseoverPosition = new Vector2(point.X, point.Y);
-            SKPaints.ShapeOutline.StrokeWidth = 2f;
+            
+            // ✅ Check if this item is currently being hovered (using full namespace)
+            bool isHovered = UI.Radar.ViewModels.RadarViewModel.CurrentMouseoverItem == this;
+            
+            // ✅ Apply hover effect - make marker 30% larger and brighter
+            float sizeMult = isHovered ? 1.3f : 1f;
+            var paintToUse = isHovered ? 
+                new SKPaint 
+                { 
+                    Color = paints.Item1.Color.AdjustBrightness(0.3f), // 30% brighter
+                    StrokeWidth = paints.Item1.StrokeWidth * 1.2f,
+                    Style = paints.Item1.Style,
+                    IsAntialias = paints.Item1.IsAntialias
+                } : paints.Item1;
+            
+            SKPaints.ShapeOutline.StrokeWidth = isHovered ? 3f : 2f; // Thicker outline when hovered
+            
             if (heightDiff > 1.45) // loot is above player
             {
-                using var path = point.GetUpArrow(5);
+                using var path = point.GetUpArrow(5 * sizeMult);
                 canvas.DrawPath(path, SKPaints.ShapeOutline);
-                canvas.DrawPath(path, paints.Item1);
+                canvas.DrawPath(path, paintToUse);
             }
             else if (heightDiff < -1.45) // loot is below player
             {
-                using var path = point.GetDownArrow(5);
+                using var path = point.GetDownArrow(5 * sizeMult);
                 canvas.DrawPath(path, SKPaints.ShapeOutline);
-                canvas.DrawPath(path, paints.Item1);
+                canvas.DrawPath(path, paintToUse);
             }
             else // loot is level with player
             {
-                var size = 5 * App.Config.UI.UIScale;
+                var size = (5 * App.Config.UI.UIScale) * sizeMult;
                 canvas.DrawCircle(point, size, SKPaints.ShapeOutline);
-                canvas.DrawCircle(point, size, paints.Item1);
+                canvas.DrawCircle(point, size, paintToUse);
             }
 
             point.Offset(7 * App.Config.UI.UIScale, 3 * App.Config.UI.UIScale);
+
+            // ✅ Make text brighter when hovered
+            var textPaint = isHovered ?
+                new SKPaint
+                {
+                    Color = paints.Item2.Color.AdjustBrightness(0.3f),
+                    IsStroke = paints.Item2.IsStroke,
+                    IsAntialias = paints.Item2.IsAntialias
+                } : paints.Item2;
 
             canvas.DrawText(
                 label,
@@ -280,12 +300,62 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Loot
                 point,
                 SKTextAlign.Left,
                 SKFonts.UIRegular,
-                paints.Item2);
-
+                textPaint);
         }
 
         public virtual void DrawMouseover(SKCanvas canvas, EftMapParams mapParams, LocalPlayer localPlayer)
         {
+            using var lines = new PooledList<string>();
+            
+            // ✅ Show item name
+            lines.Add(GetUILabel());
+            
+            // ✅ Show WHY this marker is visible
+            var reasons = new PooledList<string>();
+            
+            if (IsQuestItem)
+                reasons.Add("Quest Item");
+            
+            if (CustomFilter is not null)
+            {
+                if (CustomFilter.Important)
+                    reasons.Add($"Important Filter: '{CustomFilter.Name}'");
+                else
+                    reasons.Add($"Custom Filter: '{CustomFilter.Name}'");
+            }
+            else
+            {
+                // Not a custom filter, check standard reasons
+                if (IsImportant)
+                    reasons.Add("Important (Wishlist)");
+                else if (IsValuableLoot)
+                    reasons.Add($"Valuable (≥{Utilities.FormatNumberKM(App.Config.Loot.MinValueValuable)})");
+                else if (IsRegularLoot)
+                    reasons.Add($"Loot Filter (≥{Utilities.FormatNumberKM(App.Config.Loot.MinValue)})");
+            }
+            
+            if (IsBackpack)
+                reasons.Add("Backpack");
+            if (IsMeds)
+                reasons.Add("Meds");
+            if (IsFood)
+                reasons.Add("Food");
+            if (IsCurrency)
+                reasons.Add("Currency");
+            
+            // Combine all reasons
+            if (reasons.Count > 0)
+            {
+                lines.Add($"Visible: {string.Join(", ", reasons)}");
+            }
+            
+            reasons.Dispose();
+            
+            // ✅ Show distance
+            float distance = Vector3.Distance(localPlayer.Position, Position);
+            lines.Add($"Distance: {distance:F0}m");
+            
+            Position.ToMapPos(mapParams.Map).ToZoomedPos(mapParams).DrawMouseoverText(canvas, lines.Span);
         }
 
         /// <summary>

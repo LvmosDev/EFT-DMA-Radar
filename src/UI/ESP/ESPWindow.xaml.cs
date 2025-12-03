@@ -297,12 +297,13 @@ namespace LoneEftDmaRadar.UI.ESP
                             DrawStaticContainers(ctx, screenWidth, screenHeight, localPlayer);
                         }
 
-                        // Render Exfils
+                        // Render Exfils - ALWAYS check if enabled
                         if (Exits is not null && App.Config.UI.EspExfils)
                         {
                             const float exfilMaxDistance = 25f;
                             foreach (var exit in Exits)
                             {
+                                // ? Add missing status checks like Aimview
                                 if (exit is Exfil exfil && (exfil.Status == Exfil.EStatus.Open || exfil.Status == Exfil.EStatus.Pending))
                                 {
                                      float distance = Vector3.Distance(localPlayer.Position, exfil.Position);
@@ -328,11 +329,13 @@ namespace LoneEftDmaRadar.UI.ESP
                             }
                         }
 
+                        // Render Tripwires - ALWAYS check if enabled
                         if (Explosives is not null && App.Config.UI.EspTripwires)
                         {
                             DrawTripwires(ctx, screenWidth, screenHeight, localPlayer);
                         }
 
+                        // Render Grenades - ALWAYS check if enabled
                         if (Explosives is not null && App.Config.UI.EspGrenades)
                         {
                             DrawGrenades(ctx, screenWidth, screenHeight, localPlayer);
@@ -409,7 +412,7 @@ namespace LoneEftDmaRadar.UI.ESP
 
                 if (WorldToScreen2WithScale(item.Position, out var screen, out float scale, screenWidth, screenHeight))
                 {
-                     // Calculate cone filter
+                     // Calculate cone filter 
                      bool coneEnabled = App.Config.UI.EspLootConeEnabled && App.Config.UI.EspLootConeAngle > 0f;
                      bool inCone = true;
 
@@ -601,11 +604,11 @@ namespace LoneEftDmaRadar.UI.ESP
                 try
                 {
                     if (grenade.Position == Vector3.Zero)
-                        continue;
+                        return;
 
                     float distance = Vector3.Distance(localPlayer.Position, grenade.Position);
                     if (distance > maxRenderDistance)
-                        continue;
+                        return;
 
                     if (!WorldToScreen2WithScale(grenade.Position, out var screen, out float scale, screenWidth, screenHeight))
                         return;
@@ -740,6 +743,15 @@ namespace LoneEftDmaRadar.UI.ESP
             // Check if skeleton exists (same as DeviceAimbot)
             if (player.Skeleton?.BoneTransforms == null)
                 return;
+
+            // ? Calculate distance-based scale for line thickness (like Aimview)
+            var localPlayer = LocalPlayer;
+            if (localPlayer != null)
+            {
+                float distance = Vector3.Distance(localPlayer.Position, player.Position);
+                float distanceScale = Math.Clamp(50f / Math.Max(distance, 5f), 0.5f, 2.5f);
+                thickness *= distanceScale; // Scale thickness with distance
+            }
 
             foreach (var (from, to) in _boneConnections)
             {
@@ -1176,51 +1188,25 @@ namespace LoneEftDmaRadar.UI.ESP
             scr = default;
             scale = 1f;
 
-            // Get projection WITH depth
-            if (!CameraManagerNew.WorldToScreen(in world, out var screen, out float viewDepth, onScreenCheck: true, useTolerance: true))
+            // Get projection (PR #6 version - no depth output)
+            if (!CameraManagerNew.WorldToScreen(in world, out var screen, true, true))
             {
                 return false;
             }
 
             scr = screen;
 
-            // Calculate scale based on "pixels per meter" at this position
-            // Project a second point that's 1 meter to the right in world-space
-            var offsetWorld = world + new Vector3(1f, 0f, 0f);
+            // Calculate scale based on distance from camera
+            var camPos = CameraManagerNew.CameraPosition;
+            float dist = Vector3.Distance(camPos, world);
             
-            if (CameraManagerNew.WorldToScreen(in offsetWorld, out var offsetScreen, out _, onScreenCheck: false, useTolerance: false))
-            {
-                // Calculate pixel distance for 1 meter world-space offset
-                float pixelDist = Vector2.Distance(
-                    new Vector2(screen.X, screen.Y),
-                    new Vector2(offsetScreen.X, offsetScreen.Y)
-                );
-                
-                // Reference: at some reference distance, 1 meter = X pixels
-                const float referencePixelsPerMeter = 50f; // Slightly larger than Aimview for full-screen ESP
-                scale = Math.Clamp(pixelDist / referencePixelsPerMeter, 0.2f, 8f);
-                
-                // Compensate for scope magnification to prevent over-zooming with scoped sights
-                float scopeMag = CameraManagerNew.ScopeMagnification;
-                if (scopeMag > 1.0f)
-                {
-                    scale /= scopeMag;
-                }
-            }
-            else
-            {
-                // Fallback to depth-only scaling
-                const float referenceDepth = 10f;
-                scale = Math.Clamp(referenceDepth / Math.Max(viewDepth, 1f), 0.2f, 8f);
-                
-                // Apply scope magnification compensation
-                float scopeMag = CameraManagerNew.ScopeMagnification;
-                if (scopeMag > 1.0f)
-                {
-                    scale /= scopeMag;
-                }
-            }
-
+            // ? CORRECTED: Perspective-based scaling - markers get SMALLER at greater distances (natural view)
+            // At close range (5m): scale ~2.0x (larger, more visible)
+            // At medium range (10m): scale ~1.0x (normal size)  
+            // At far range (30m+): scale ~0.33x (smaller, less obtrusive)
+            const float referenceDistance = 10f; // Reference distance for 1.0x scale
+            scale = Math.Clamp(referenceDistance / Math.Max(dist, 1f), 0.3f, 3f);
+            
             return true;
         }
 

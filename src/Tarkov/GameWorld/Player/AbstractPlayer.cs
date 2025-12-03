@@ -629,12 +629,17 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
                     };
                 }
             };
+            
+            // Call virtual hook for derived classes to validate their own transforms
+            OnValidateTransforms();
         }
 
         /// <summary>
-        /// Hook for derived classes to validate custom transforms.
+        /// Override this method to validate custom transforms.
         /// </summary>
-        public virtual void OnValidateTransforms() { }
+        public virtual void OnValidateTransforms()
+        {
+        }
 
         /// <summary>
         /// Set player rotation (Direction/Pitch)
@@ -885,7 +890,7 @@ namespace LoneEftDmaRadar.Tarkov.GameWorld.Player
                                 level = $"L{levelResult}:";
                         }
                         lines.Add($"{level}{name}{health}");
-                        lines.Add($"H: {height:n0} D: {dist:n0}");
+                        lines.Add($"{height:n0},{dist:n0}");
                     }
                     else // just height, distance
                     {
