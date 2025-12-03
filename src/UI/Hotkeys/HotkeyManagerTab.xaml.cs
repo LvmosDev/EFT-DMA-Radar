@@ -102,5 +102,13 @@ namespace LoneEftDmaRadar.UI.Hotkeys
                 base.OnPreviewMouseDown(e);
             }
         }
+
+        private void OnToggleInputModeClick(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is HotkeyManagerViewModel vm)
+            {
+                vm.ToggleInputMode();
+            }
+        }
     }
 }

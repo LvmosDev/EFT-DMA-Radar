@@ -111,6 +111,13 @@ namespace LoneEftDmaRadar
         public ConcurrentDictionary<Win32VirtualKey, string> Hotkeys { get; private set; } = new(); // Default entries
 
         /// <summary>
+        /// Hotkey input mode - determines where hotkeys are detected from.
+        /// </summary>
+        [JsonPropertyName("hotkeyInputMode")]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public HotkeyInputMode HotkeyInputMode { get; set; } = HotkeyInputMode.RadarPC;
+
+        /// <summary>
         /// All defined Radar Colors.
         /// </summary>
         [JsonPropertyName("radarColors")]
@@ -905,6 +912,21 @@ namespace LoneEftDmaRadar
     {
         Top,
         Bottom
+    }
+
+    /// <summary>
+    /// Hotkey input mode - determines where hotkeys are detected from.
+    /// </summary>
+    public enum HotkeyInputMode
+    {
+        /// <summary>
+        /// Hotkeys are detected from the Radar PC keyboard (local machine running the program).
+        /// </summary>
+        RadarPC,
+        /// <summary>
+        /// Hotkeys are detected from the Game PC via DMA (existing behavior).
+        /// </summary>
+        GamePC
     }
 
     public sealed class LootConfig

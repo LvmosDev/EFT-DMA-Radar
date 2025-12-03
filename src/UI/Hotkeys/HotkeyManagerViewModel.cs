@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Threading;
 using VmmSharpEx.Extensions.Input;
+using HotkeyInputMode = LoneEftDmaRadar.HotkeyInputMode;
 
 namespace LoneEftDmaRadar.UI.Hotkeys
 {
@@ -26,6 +27,29 @@ namespace LoneEftDmaRadar.UI.Hotkeys
 
         public ObservableCollection<HotkeyBindingEntry> Bindings { get; }
         public HotkeyBindingEntry ListeningEntry { get; private set; }
+
+        /// <summary>
+        /// Current hotkey input mode.
+        /// </summary>
+        public HotkeyInputMode InputMode
+        {
+            get => App.Config.HotkeyInputMode;
+            private set
+            {
+                if (App.Config.HotkeyInputMode != value)
+                {
+                    App.Config.HotkeyInputMode = value;
+                    App.Config.Save();
+                    OnPropertyChanged(nameof(InputMode));
+                    OnPropertyChanged(nameof(InputModeText));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Display text for current input mode.
+        /// </summary>
+        public string InputModeText => InputMode == HotkeyInputMode.RadarPC ? "Radar PC" : "Game PC";
 
         public HotkeyManagerViewModel()
         {
@@ -239,5 +263,15 @@ namespace LoneEftDmaRadar.UI.Hotkeys
         }
 
         internal static bool HotkeysSuspended => Volatile.Read(ref _suspendCount) > 0;
+
+        /// <summary>
+        /// Toggles between Radar PC and Game PC input modes.
+        /// </summary>
+        public void ToggleInputMode()
+        {
+            InputMode = InputMode == HotkeyInputMode.RadarPC 
+                ? HotkeyInputMode.GamePC 
+                : HotkeyInputMode.RadarPC;
+        }
     }
 }

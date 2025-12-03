@@ -63,9 +63,15 @@ namespace LoneEftDmaRadar.DMA
             if (!hotkeys.Any())
                 return;
 
-            bool haveWin32 = _input is not null;
+            // Get current hotkey input mode from config
+            var inputMode = App.Config.HotkeyInputMode;
 
-            // Update Win32 state if backend is present.
+            bool useGamePCInput = inputMode == LoneEftDmaRadar.HotkeyInputMode.GamePC;
+            bool useRadarPCInput = inputMode == LoneEftDmaRadar.HotkeyInputMode.RadarPC;
+
+            bool haveWin32 = _input is not null && useGamePCInput;
+
+            // Update Win32 state if backend is present and we're using Game PC mode.
             if (haveWin32)
             {
                 try
@@ -87,7 +93,10 @@ namespace LoneEftDmaRadar.DMA
                 var action = kvp.Value;
 
                 bool isDownWin32 = false;
-                if (haveWin32)
+                bool isDownLocal = false;
+
+                // Check Game PC input (via DMA) if in Game PC mode
+                if (haveWin32 && useGamePCInput)
                 {
                     try
                     {
@@ -100,11 +109,20 @@ namespace LoneEftDmaRadar.DMA
                     }
                 }
 
+                // Check Radar PC input (local keyboard) if in Radar PC mode
+                if (useRadarPCInput)
+                {
+                    isDownLocal = IsLocalKeyDown(vk);
+                }
+
+                // DeviceAimbot and mouse fallback work in both modes as they're local
                 bool isDownDeviceAimbot = IsDeviceAimbotKeyDown(vk);
                 bool isDownMouseFallback = IsMouseVirtualKey(vk) && IsMouseAsyncDown(vk);
 
-                // FINAL state: key is considered down if EITHER backend reports it.
-                bool isKeyDown = isDownWin32 || isDownDeviceAimbot || isDownMouseFallback;
+                // FINAL state: key is considered down if any active backend reports it.
+                // In Radar PC mode: use local input + DeviceAimbot/mouse fallback
+                // In Game PC mode: use DMA input + DeviceAimbot/mouse fallback
+                bool isKeyDown = isDownWin32 || isDownLocal || isDownDeviceAimbot || isDownMouseFallback;
 
                 action.Execute(isKeyDown);
             }
@@ -173,6 +191,16 @@ namespace LoneEftDmaRadar.DMA
         private static extern short GetAsyncKeyState(int vKey);
 
         private static bool IsMouseAsyncDown(Win32VirtualKey vk)
+        {
+            var state = GetAsyncKeyState((int)vk);
+            return (state & 0x8000) != 0;
+        }
+
+        /// <summary>
+        /// Checks if a key is down on the local Radar PC keyboard.
+        /// Uses GetAsyncKeyState to read keyboard state directly from the local machine.
+        /// </summary>
+        private static bool IsLocalKeyDown(Win32VirtualKey vk)
         {
             var state = GetAsyncKeyState((int)vk);
             return (state & 0x8000) != 0;

@@ -38,6 +38,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -49,8 +50,47 @@
                    Foreground="{StaticResource TextBrush}"
                    Text="Keybind Manager" />
 
+        <!-- Input Mode Toggle -->
+        <Border Grid.Row="1"
+                Background="{StaticResource BackgroundBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                Padding="12,8"
+                Margin="0,0,0,12"
+                CornerRadius="4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Input Mode"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextBrush}"
+                               Margin="0,0,0,4"/>
+                    <TextBlock Text="{Binding InputModeText}"
+                               FontSize="14"
+                               Foreground="{StaticResource AccentBrush}"/>
+                    <TextBlock FontSize="11"
+                               Foreground="{StaticResource SubtleBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,2,0,0"
+                               Text="Hotkeys will be detected from the keyboard of the selected input source"/>
+                </StackPanel>
+                
+                <Button Grid.Column="1"
+                        Content="Switch Mode"
+                        Padding="16,8"
+                        MinWidth="120"
+                        Click="OnToggleInputModeClick"
+                        VerticalAlignment="Center"
+                        Margin="12,0,0,0"/>
+            </Grid>
+        </Border>
+
         <!-- Instructions -->
-        <GroupBox Grid.Row="1"
+        <GroupBox Grid.Row="2"
                   Header="How to bind keys"
                   Margin="0,0,0,12"
                   Foreground="{StaticResource TextBrush}">
@@ -66,7 +106,7 @@
         </GroupBox>
 
         <!-- Column Headers -->
-        <Grid Grid.Row="2" Margin="0,0,0,4">
+        <Grid Grid.Row="3" Margin="0,0,0,4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="*"/>
@@ -92,7 +132,7 @@
         </Grid>
 
         <!-- Bindings List -->
-        <ScrollViewer Grid.Row="3"
+        <ScrollViewer Grid.Row="4"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{Binding Bindings}">
